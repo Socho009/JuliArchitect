@@ -1,0 +1,2 @@
+1.0065094
+Dict{String, Any}("block_1.Wout_ort_err" => 1.7111079f-6, "block_3.Wk_sigma" => 1.7630951f0, "block_1.Wk_sigma" => 1.8060225f0, "block_2.Wv_sigma" => 1.9425765f0, "block_2.Wout_ort_err" => 1.7284627f-6, "block_1.Wv_sigma" => 1.7676194f0, "block_2.Wk_sigma" => 1.7738099f0, "block_3.Wq_sigma" => 1.8944479f0, "block_1.Wq_sigma" => 1.8336446f0, "block_3.Wv_sigma" => 1.7734486f0, "block_3.Wout_ort_err" => 1.5432638f-6, "lm_head_sigma" => 32.628956f0, "block_2.Wq_sigma" => 1.8467065f0)

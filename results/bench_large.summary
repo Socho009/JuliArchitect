@@ -1,0 +1,6 @@
+commit: 5b273f8
+n_params: 6317600
+train_time_s: 0.8563649654388428
+train_time_per_iter_s: 0.08563649654388428
+inference_mean_ms: 59.14045810699463
+inference_median_ms: 56.25152587890625
