@@ -14,19 +14,94 @@
 
 ## Executive Summary
 
-This project addresses a fundamental limitation of modern LLMs: **discrete tokenization**. Standard autoregressive models reduce continuous reality (audio waveforms, trajectories, physical fields) to arbitrary categorical boundaries. 
+This project addresses a fundamental limitation of modern LLMs: **discrete tokenization**. Standard autoregressive models reduce continuous reality (audio waveforms, trajectories, physical fields) to arbitrary categorical boundaries.
 
-**Architect.jl** introduces three contributions:
+**Architect.jl** combines theory and a production-quality Julia implementation to explore autoregression over function spaces. The repository delivers three practical outcomes:
 
-1. **FAT (Functional Autoregressive Transformer)**: A rigorous mathematical framework proving that standard next-token prediction is a degenerate zero-order case of autoregression over Hilbert spaces of functions.
+1. **FAT (Functional Autoregressive Transformer)** — an implemented and documented pipeline that predicts coefficient vectors (spectral expansions) autoregressively instead of discrete tokens. See implementation: `src/FAT/phase5_fat_model.jl` (model + training), `src/FAT/phase1_hilbert.jl` (Chebyshev basis), and `src/FAT/phase2_spectral_head.jl` (linear spectral head).
 
-2. **Spectral Stabilization**: A proven non-expansive operator (L_Π ≤ 1) cascading Taylor truncations with Chebyshev/Fourier projections, preventing catastrophic error accumulation in continuous autoregression.
+2. **Chebyshev-based Spectral Stabilizer (Π)** — a Chebyshev-only economization + Taylor truncation pipeline implemented as
 
-3. **Production-Ready Julia Implementation**: 
-   - Parametric type system enabling compile-time specialization
-   - Zygote AD compatibility via mutation-free code (34,000× speedup vs. finite-diff)
-   - 50–7,000× parameter reduction vs. standard LMs at equivalent capacity
-   - Sub-millisecond inference latency (0.63–56ms p50 across model sizes)
+       $$\Pi = \mathbf{P}_p \circ \mathbf{P}_k$$
+
+       The Fourier projection from earlier drafts was deliberately removed in code and proofs: composing projections across incompatible bases can break the Lipschitz/non-expansivity guarantee. The current stabilizer (implemented in `src/FAT/phase3_stabilizer.jl` and formalized in `proofs/`) is provably non-expansive ($L_\Pi \le 1$) in the coefficient/Hilbert space used by FAT.
+
+3. **Julia-native, AD-compatible implementation** — production-quality, mutation-free code designed for `Zygote.jl` autodiff and practical experimentation. Highlights:
+       - Parametric types and device abstraction (`Core.to_device`) for Float32/64 and CUDA
+       - Zygote-safe, mutation-free training loop: `fat_train!` uses `Zygote.withgradient` plus a custom AdamW + grad clipping updater (`src/FAT/phase5_fat_model.jl`)
+       - Directional trajectory approval loss (`src/FAT/phase4_loss.jl`) with MSE warmup for stable gradients
+       - Optional Cayley orthogonal reparameterization (`src/Layers/layers.jl`) and LatentAttention (MLA) for KV compression (`src/FAT/phase7_mla.jl`)
+       - Hardin–Taylor MCP regularizer and hierarchy-climbing generation (`src/FAT/phase8_hardin_taylor.jl`)
+
+These changes bring the theoretical FAT proposal into a concrete, testable codebase while clarifying and correcting earlier design choices (notably the stabilizer pipeline).
+
+## Unified Mathematical Framework
+
+This short, self-contained formulation unifies the code and the theory so you can reason about FAT in one notation.
+
+**Core objects**
+- $H$: Hilbert space of scalar functions (e.g. $L^2([-1,1],w])$).
+- $\{\phi_n\}$: orthonormal basis (Chebyshev in code). Truncate at $K$ to get $V_K$ and coefficient vectors $\Theta\in\mathbb{R}^{K+1}$.
+
+Analysis / synthesis:
+$$
+\operatorname{coeff}_K(f)=\big(\langle f,\phi_0\rangle_H,\dots,\langle f,\phi_K\rangle_H\big)^\top,
+$$
+$$
+\operatorname{synth}_K(\Theta)(x)=\sum_{n=0}^K \Theta_n\phi_n(x).
+$$
+
+**Model (FAT)**
+Given context $C_t=(\Theta_{t-L+1},\dots,\Theta_t)$ define
+$$
+\Theta_{t+1}^{\mathrm{raw}}=G_\psi(C_t),\qquad G_\psi:(\mathbb{R}^{K+1})^L\to\mathbb{R}^{K+1}.
+$$
+`SpectralHead` maps between coefficients and embedding space (see `src/FAT/phase2_spectral_head.jl`).
+
+**Stabilizer**
+Two orthogonal projections (same coefficient/Hilbert space):
+$$P_k\ (\text{truncate/anchor}),\quad P_p\ (\text{Chebyshev economizer}).$$
+Define $\Pi=P_p\circ P_k$. Since $P_k,P_p$ are orthogonal, $\|\Pi\|_{op}\le1$ and
+$$\|\Pi(x)-\Pi(y)\|\le\|x-y\|.$$ This prevents per-step amplification of errors.
+
+**Loss (directional approval + MSE warmup)**
+Displacements: $\Delta^*_t=\Theta^*_{t+1}-\Theta_t$, $\Delta^{\mathrm{pred}}_t=\Theta^{\mathrm{pred}}_{t+1}-\Theta_t$.
+Unitize with floor $\varepsilon$: $\nu=\Delta/(\|\Delta\|+\varepsilon)$. Flow loss:
+$$\mathcal{L}_{\mathrm{flow}}=1-\mathbb{E}_t[\langle\nu^{\mathrm{pred}}_t,\nu^*_t\rangle].$$
+Blend with MSE: $\mathcal{L}_t=\alpha_t\mathcal{L}_{\mathrm{flow}}+(1-\alpha_t)\mathrm{MSE}(\cdot)$.
+
+**Training & generation (compact)**
+Train: $\min_\psi\mathbb{E}[\mathcal{L}_t]+\lambda R(\psi)$ (AD, AdamW, grad clip).
+Generate step: $\Theta_{t+1}=\Pi(G_\psi(\Theta_{t-L+1:t}))$.
+
+**Intuition (ML master level)**
+- Coefficients = compact function descriptors; FAT learns dynamics in coefficient space.
+- $\Pi$ enforces stability by projecting into a low-order, energy-efficient subspace.
+- Approval loss teaches *directional* dynamics rather than absolute magnitudes (robust to scale).
+
+**Code map / checks**: `src/FAT/phase1_hilbert.jl`, `phase2_spectral_head.jl`, `phase3_stabilizer.jl`, `phase4_loss.jl`, `phase5_fat_model.jl`.
+
+**Teaching diagram (flowchart)**
+
+```mermaid
+flowchart TD
+       F[Function f(x)] -->|analysis| C[coeff_K(f)]
+       C --> Enc[Linear encoder]
+       Enc --> TF[Transformer blocks (FAT)]
+       TF --> Head[Spectral head → Θ_raw]
+       Head --> Stabilizer[Stabilizer Π = P_p ∘ P_k]
+       Stabilizer --> ThetaNext[Θ_{t+1} (coefficients)]
+       ThetaNext -->|synthesis| Fout[Reconstructed function]
+
+       subgraph Training
+              Head --> LossNode[Compute Δ, unitize, approval loss + MSE warmup]
+              LossNode --> Opt[AdamW + grad clip]
+              Opt --> TF
+       end
+
+       classDef core fill:#f9f,stroke:#333,stroke-width:1px;
+       class TF,Head,Stabilizer core;
+```
 
 ---
 
@@ -94,22 +169,24 @@ where $\{T_n\}$ are Chebyshev polynomials and $K$ is the truncation order (a hyp
 
 ### 2. **Spectral Stabilization Operator (Π)**
 
-**Problem**: Continuous autoregression suffers from error accumulation. If the transition operator has Lipschitz constant $L > 1$, errors diverge exponentially.
+**Problem**: Continuous autoregression suffers from error accumulation when the effective transition operator is expansive ($L>1$).
 
-**Solution**: Cascade orthogonal projections to enforce non-expansivity ($L_\Pi \leq 1$):
+**Implemented Solution**: Architect.jl enforces stability by applying two orthogonal projections that act in the same coefficient/Hilbert space:
 
-1. **Local Taylor Anchor** ($\mathbf{P}_k$): Project onto polynomial subspace $V_k = \text{span}\{T_0, \ldots, T_k\}$
-2. **Global Chebyshev Economization** ($\mathbf{P}_p$): Truncate to lower degree $V_p$ (Minimax theorem)
-3. **Fourier Harmonic Projection** ($\mathbf{P}_F$): Global harmonic regularization
+1. **Local Taylor Anchor** ($\mathbf{P}_k$): truncate to polynomial order $k$ (Taylor/low-order coefficients)
+2. **Chebyshev Economizer** ($\mathbf{P}_p$): re-economize coefficients in the Chebyshev basis to a lower order $p\le k$
 
-$$\Pi = \mathbf{P}_F \circ \mathbf{P}_p \circ \mathbf{P}_k$$
+The implemented stabilizer is therefore
 
-**Theorem** (proven in [DESIGN.md](DESIGN.md)): Since each constituent projection is orthogonal in its Hilbert space, we have $L_{\mathbf{P}_k} = L_{\mathbf{P}_p} = L_{\mathbf{P}_F} = 1$ (exactly). By composition:
+$$\Pi = \mathbf{P}_p \circ \mathbf{P}_k$$
 
-$$L_\Pi = L_{\mathbf{P}_F} \cdot L_{\mathbf{P}_p} \cdot L_{\mathbf{P}_k} = 1$$
+This Chebyshev-only pipeline is implemented in `src/FAT/phase3_stabilizer.jl`. The earlier idea of inserting a Fourier projection between the truncations was removed in the implementation and proofs: composing projections across different bases can violate the Lipschitz/non-expansivity guarantee unless strong norm-equivalence conditions hold. See `proofs/` for the formal argument and the `lipschitz_stabilizer` statement.
 
-**Result**: Error growth bounded linearly rather than exponentially:
-$$\|\hat{f}^n - f^n\| \leq \sum_{i=1}^{n} \epsilon_i \quad \text{(vs. } L^n \epsilon_0 \text{)}$$
+**Theorem (implemented & proven)**: Both $\mathbf{P}_k$ and $\mathbf{P}_p$ are orthogonal projections in the same coefficient/Hilbert space, so each has operator norm 1. Hence the composition satisfies
+
+$$L_\Pi = L_{\mathbf{P}_p} \cdot L_{\mathbf{P}_k} \le 1$$
+
+**Result**: Error accumulation is controlled (non-expansive stabilizer), so iterative generation remains well-behaved under finite truncation.
 
 ### 3. **Directional Trajectory Approval Loss**
 
