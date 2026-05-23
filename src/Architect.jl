@@ -71,5 +71,9 @@ export FATConfig, FunctionalAutoregressiveTransformer
 export fat_forward, fat_train!, fat_generate, adaptive_fat_generate, FATTrainConfig, FATTrainState
 # Phase 6 — Continuous Data Streams
 export ContinuousTimeDataLoader, make_continuous_batch_fn
+# Phase 7 — Multi-Head Latent Attention
+export LatentAttention, has_latent_kv
+# Phase 8 — Hardin-Taylor Minimum-Complexity Prediction
+export spectral_complexity, mcp_loss, ClimbEvent, hardin_taylor_generate
 
 end # module Architect

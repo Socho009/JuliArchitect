@@ -45,8 +45,9 @@ using Zygote
 # ambiguity between our Architect.Core and Julia's built-in Core module.
 import ..Core
 import ..Core: AbstractModelConfig
-import ..Layers: AbstractLayer, Linear, Norm, Attention, Block, FeedForward
-import ..Layers: has_bias
+import ..Layers: AbstractLayer, AbstractAttention, Linear, Norm, Attention, Block, FeedForward
+import ..Layers: has_bias, _batched_attention_scores, _apply_causal_mask, _softmax, _dropout
+import ..Layers: _batched_attention_output, apply_position_encoding!
 
 # ─── Exports ─────────────────────────────────────────────────────────────────
 
@@ -72,6 +73,10 @@ export FATConfig, FunctionalAutoregressiveTransformer
 export fat_forward, fat_train!, fat_generate, adaptive_fat_generate, FATTrainConfig, FATTrainState
 # Phase 6 — Continuous Data Streams
 export ContinuousTimeDataLoader, next_batch, make_continuous_batch_fn
+# Phase 7 — Multi-Head Latent Attention
+export LatentAttention, has_latent_kv
+# Phase 8 — Hardin-Taylor Minimum-Complexity Prediction
+export spectral_complexity, mcp_loss, ClimbEvent, hardin_taylor_generate
 
 # ─── Includes (in dependency order) ─────────────────────────────────────────
 include("phase1_hilbert.jl")
@@ -80,5 +85,7 @@ include("phase3_stabilizer.jl")
 include("phase4_loss.jl")
 include("phase5_fat_model.jl")
 include("phase6_data.jl")
+include("phase7_mla.jl")
+include("phase8_hardin_taylor.jl")
 
 end # module FAT

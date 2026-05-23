@@ -55,6 +55,9 @@ struct FATConfig{T<:AbstractFloat} <: AbstractModelConfig{T}
     n_layer::Int      # number of transformer blocks
     block_size::Int   # max context length
     dropout::T        # uniform dropout rate
+    # MLA (Multi-Head Latent Attention) fields
+    use_mla::Bool     # whether to use latent KV compression
+    d_c::Int          # latent compression dimension (used when use_mla=true)
     # AbstractModelConfig compatibility fields
     vocab_size::Int   # = K+1
     embd_pdrop::T
@@ -79,12 +82,14 @@ function FATConfig{T}(;
         dropout::Real   = 0.0,
         K_anchor::Int   = K,
         P_econ::Int     = K ÷ 2,
+        use_mla::Bool   = false,
+        d_c::Int        = n_embd ÷ 4,
 ) where {T<:AbstractFloat}
     @assert n_embd % n_head == 0 "n_embd=$n_embd must be divisible by n_head=$n_head"
     @assert 0 <= P_econ <= K_anchor <= K "Require 0 ≤ P_econ ≤ K_anchor ≤ K"
     dp = T(dropout)
     FATConfig{T}(K, K_anchor, P_econ, n_embd, n_head, n_layer, block_size,
-                 dp, K+1, dp, dp, dp)
+                 dp, use_mla, d_c, K+1, dp, dp, dp)
 end
 
 """
@@ -95,8 +100,10 @@ Convenience constructor defaulting to Float32.
 FATConfig(; kwargs...) = FATConfig{Float32}(; kwargs...)
 
 function Base.show(io::IO, c::FATConfig{T}) where T
+    mla_str = c.use_mla ? ", MLA(d_c=$(c.d_c))" : ""
     print(io, "FATConfig{$T}(K=$(c.K), K_anchor=$(c.K_anchor), P_econ=$(c.P_econ), " *
-              "d=$(c.n_embd), heads=$(c.n_head), layers=$(c.n_layer), ctx=$(c.block_size))")
+              "d=$(c.n_embd), heads=$(c.n_head), layers=$(c.n_layer), ctx=$(c.block_size)" *
+              mla_str * ")")
 end
 
 # ─── FAT Model ────────────────────────────────────────────────────────────────
@@ -166,12 +173,18 @@ function FunctionalAutoregressiveTransformer(config::FATConfig{T}) where {T<:Abs
     coeff_embed = Linear{T}(K+1, n_embd; bias=true)
 
     # Transformer backbone: identical to ContinuousModel (Phases 1-4 of Architect)
-    # All Linear projections for full Zygote compatibility
+    # Dispatch on use_mla to select attention layer type
     blocks = map(1:config.n_layer) do _
-        ln1       = Norm{T}(n_embd)
-        attention = Attention{T}(config; use_orthogonal_out=false, use_orthogonal_qkv=false)
-        ln2       = Norm{T}(n_embd)
-        ff        = FeedForward{T}(config)
+        ln1 = Norm{T}(n_embd)
+        if config.use_mla
+            # Phase 7: Multi-Head Latent Attention with KV compression
+            attention = LatentAttention{T}(config; d_c=config.d_c)
+        else
+            # Standard attention (all Linear projections for full Zygote compatibility)
+            attention = Attention{T}(config; use_orthogonal_out=false, use_orthogonal_qkv=false)
+        end
+        ln2 = Norm{T}(n_embd)
+        ff  = FeedForward{T}(config)
         Block{T, typeof(attention), typeof(ln1), typeof(ff)}(
             ln1, attention, ln2, ff, config.resid_pdrop
         )
@@ -265,6 +278,8 @@ struct FATTrainConfig{T<:AbstractFloat}
     loss_eps::T
     warmup_iters::Int
     log_interval::Int
+    mcp_lambda::T         # Phase 8: Hardin-Taylor MCP regularization weight
+    mcp_alpha::T          # Phase 8: complexity exponent α
 end
 
 function FATTrainConfig{T}(;
@@ -277,10 +292,12 @@ function FATTrainConfig{T}(;
         loss_eps::Real      = 1e-6,
         warmup_iters::Int   = 500,
         log_interval::Int   = 100,
+        mcp_lambda::Real    = 0.0,
+        mcp_alpha::Real     = 1.5,
 ) where {T<:AbstractFloat}
     FATTrainConfig{T}(T(learning_rate), T(weight_decay), max_iters, T(grad_clip),
                       (T(betas[1]), T(betas[2])), T(eps), T(loss_eps),
-                      warmup_iters, log_interval)
+                      warmup_iters, log_interval, T(mcp_lambda), T(mcp_alpha))
 end
 
 FATTrainConfig(; kwargs...) = FATTrainConfig{Float32}(; kwargs...)
@@ -303,14 +320,29 @@ function _collect_fat_params(model::FunctionalAutoregressiveTransformer{T}) wher
     # Transformer blocks
     for block in model.blocks
         push!(ps, (block.ln1.weight, false))
-        if block.attention.W_qkv !== nothing
-            push!(ps, (block.attention.W_qkv.weight, true))
-            has_bias(block.attention.W_qkv) && push!(ps, (block.attention.W_qkv.bias, false))
+
+        att = block.attention
+        if has_latent_kv(att)
+            # Phase 7: LatentAttention — collect Q, DKV, UK, UV, out projections
+            push!(ps, (att.W_Q.weight, true))
+            push!(ps, (att.W_Q.bias,   false))
+            push!(ps, (att.W_DKV.weight, true))
+            push!(ps, (att.W_UK.weight,  true))
+            push!(ps, (att.W_UV.weight,  true))
+            push!(ps, (att.W_out.weight, true))
+            has_bias(att.W_out) && push!(ps, (att.W_out.bias, false))
+        else
+            # Standard Attention
+            if att.W_qkv !== nothing
+                push!(ps, (att.W_qkv.weight, true))
+                has_bias(att.W_qkv) && push!(ps, (att.W_qkv.bias, false))
+            end
+            if isa(att.W_out, Linear)
+                push!(ps, (att.W_out.weight, true))
+                has_bias(att.W_out) && push!(ps, (att.W_out.bias, false))
+            end
         end
-        if isa(block.attention.W_out, Linear)
-            push!(ps, (block.attention.W_out.weight, true))
-            has_bias(block.attention.W_out) && push!(ps, (block.attention.W_out.bias, false))
-        end
+
         push!(ps, (block.ln2.weight,          false))
         push!(ps, (block.feedforward.W1.weight, true))
         push!(ps, (block.feedforward.W2.weight, true))
@@ -347,16 +379,35 @@ function _fat_extract_grads(gs, model::FunctionalAutoregressiveTransformer{T}) w
         push!(grads, _fat_field(ln1g, :weight))
         # attention
         attg = _fat_field(bg, :attention)
-        if block.attention.W_qkv !== nothing
-            wqkvg = _fat_field(attg, :W_qkv)
-            push!(grads, _fat_field(wqkvg, :weight))
-            has_bias(block.attention.W_qkv) && push!(grads, _fat_field(wqkvg, :bias))
-        end
-        if isa(block.attention.W_out, Linear)
+
+        if has_latent_kv(block.attention)
+            # Phase 7: LatentAttention gradients
+            wqg = _fat_field(attg, :W_Q)
+            push!(grads, _fat_field(wqg, :weight))
+            push!(grads, _fat_field(wqg, :bias))
+            wdkvg = _fat_field(attg, :W_DKV)
+            push!(grads, _fat_field(wdkvg, :weight))
+            wukg = _fat_field(attg, :W_UK)
+            push!(grads, _fat_field(wukg, :weight))
+            wuvg = _fat_field(attg, :W_UV)
+            push!(grads, _fat_field(wuvg, :weight))
             woutg = _fat_field(attg, :W_out)
             push!(grads, _fat_field(woutg, :weight))
             has_bias(block.attention.W_out) && push!(grads, _fat_field(woutg, :bias))
+        else
+            # Standard Attention gradients
+            if block.attention.W_qkv !== nothing
+                wqkvg = _fat_field(attg, :W_qkv)
+                push!(grads, _fat_field(wqkvg, :weight))
+                has_bias(block.attention.W_qkv) && push!(grads, _fat_field(wqkvg, :bias))
+            end
+            if isa(block.attention.W_out, Linear)
+                woutg = _fat_field(attg, :W_out)
+                push!(grads, _fat_field(woutg, :weight))
+                has_bias(block.attention.W_out) && push!(grads, _fat_field(woutg, :bias))
+            end
         end
+
         # ln2
         ln2g = _fat_field(bg, :ln2)
         push!(grads, _fat_field(ln2g, :weight))
@@ -446,10 +497,19 @@ function fat_train!(model::FunctionalAutoregressiveTransformer{T},
         # ── Zygote AD: single backward pass ───────────────────────────────────
         loss_val, model_grad = Zygote.withgradient(model) do m
             Θ_pred = fat_forward(m, input)
-            directional_trajectory_loss(Θ_pred, target;
+            base_loss = directional_trajectory_loss(Θ_pred, target;
                                         ε      = config.loss_eps,
                                         α      = α,
                                         warmup_mse = true)
+            # Phase 8: Hardin-Taylor MCP regularization
+            # Penalizes prediction complexity to enforce "predict the simplest
+            # compatible function" principle
+            if config.mcp_lambda > zero(T)
+                mcp = mcp_loss(Θ_pred, target; α=config.mcp_alpha)
+                base_loss + config.mcp_lambda * mcp
+            else
+                base_loss
+            end
         end
 
         if !isfinite(loss_val)
