@@ -77,6 +77,12 @@ export ContinuousTimeDataLoader, next_batch, make_continuous_batch_fn
 export LatentAttention, has_latent_kv
 # Phase 8 — Hardin-Taylor Minimum-Complexity Prediction
 export spectral_complexity, mcp_loss, ClimbEvent, hardin_taylor_generate
+# Phase 9 — Topological Folding
+export ProbeCollector, TrackedAttention
+export wrap_attentions!, unwrap_attentions!, collect_head_activations
+export compute_similarity, propose_clusters, save_similarity_csv
+export FoldedHead, apply_soft_merge
+export FoldManager, should_fold, propose_and_apply_fold!
 
 # ─── Includes (in dependency order) ─────────────────────────────────────────
 include("phase1_hilbert.jl")
@@ -87,5 +93,6 @@ include("phase5_fat_model.jl")
 include("phase6_data.jl")
 include("phase7_mla.jl")
 include("phase8_hardin_taylor.jl")
+include("folding.jl")
 
 end # module FAT

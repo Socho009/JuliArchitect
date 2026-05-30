@@ -75,5 +75,11 @@ export ContinuousTimeDataLoader, make_continuous_batch_fn
 export LatentAttention, has_latent_kv
 # Phase 8 — Hardin-Taylor Minimum-Complexity Prediction
 export spectral_complexity, mcp_loss, ClimbEvent, hardin_taylor_generate
+# Phase 9 — Topological Folding
+export ProbeCollector, TrackedAttention
+export wrap_attentions!, unwrap_attentions!, collect_head_activations
+export compute_similarity, propose_clusters, save_similarity_csv
+export FoldedHead, apply_soft_merge
+export FoldManager, should_fold, propose_and_apply_fold!
 
 end # module Architect
