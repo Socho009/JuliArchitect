@@ -625,6 +625,84 @@ Thresholds are checked on every commit via `scripts/test_regression.jl`.
 
 ---
 
+## Topological Folding (Simplicity & Compression)
+
+Topological folding is a dynamic mechanism designed to detect and merge redundant attention heads and MLP blocks during training or post-training analysis.
+
+### The Problem of Head Redundancy
+As models scale, attention heads often learn highly correlated representations. In continuous autoregression (like FAT), predicting functions requires smoothness and stability, which tends to align heads in similar directions, leading to parameter inefficiency.
+
+### The Folding Pipeline
+
+```mermaid
+flowchart TD
+    A[Start: Trained model] --> B[Wrap Attention in TrackedAttention]
+    B --> C[Run batches through model]
+    C --> D[Record head activations into ProbeCollector]
+    D --> E[Unwrap Attention to restore model]
+    E --> F[Compute Pairwise Linear CKA Similarity]
+    F --> G{Similarity >= Threshold?}
+    G -->|Yes| H[Propose Cluster]
+    G -->|No| I[Keep Independent]
+    H --> J[Apply Soft Merge via FoldedHead]
+    J --> K[Fine-tune soft gates with L1/Entropy penalty]
+    K --> L[Hard-Merge: Average weights of folded heads]
+    L --> M[End: Compressed Model]
+```
+
+### Mathematical Foundations
+
+#### Centered Kernel Alignment (CKA)
+To determine if two heads $i$ and $j$ represent the same subspace, we compute the Centered Kernel Alignment (CKA) metric on their activation matrices $X_i, X_j \in \mathbb{R}^{d \times N}$ (where $d = d_{\text{head}} \times T$ and $N$ is the number of batch elements).
+
+The features are centered:
+$$X^c = X - \mathbb{E}[X]$$
+
+The linear CKA is then computed as:
+$$\text{CKA}(X_i, X_j) = \frac{\| (X_i^c)^\top X_j^c \|_F^2}{\| (X_i^c)^\top X_i^c \|_F \| (X_j^c)^\top X_j^c \|_F}$$
+
+Where $\|\cdot\|_F$ is the Frobenius norm. This metric is scale-invariant and orthogonal-rotation-invariant, making it ideal for comparing intermediate representations.
+
+#### Soft-Merging with Learnable Gates
+When $C$ heads are clustered together, they are wrapped in a `FoldedHead` with learnable gate parameters $g \in \mathbb{R}^C$.
+During forward pass, instead of running them independently, the outputs of the heads are combined:
+
+$$\mathbf{y}_{\text{merged}} = \sum_{c=1}^C \frac{e^{g_c}}{\sum_k e^{g_k}} \mathbf{y}_c$$
+
+To encourage sparsification and hard pruning, we apply an entropy or $L_1$ penalty to $g$:
+
+$$\mathcal{L}_{\text{sparsity}} = \lambda \sum_{c=1}^C |g_c|$$
+
+### Code Implementation Patterns
+
+#### TrackedAttention Wrapper
+Subtypes `AbstractAttention{P}` so it can seamlessly replace any `Attention` module inside a `Block` without violating type constraints:
+
+```julia
+struct TrackedAttention{P<:AbstractFloat, Mask} <: AbstractAttention{P}
+    attn::Attention{P, Mask}
+    layer_idx::Int
+    collector::ProbeCollector{P}
+end
+```
+
+#### Mutation-Free Soft-Merge
+To preserve Zygote AD compatibility during training, `apply_soft_merge` performs a functional accumulation instead of in-place `+=` updates:
+
+```julia
+function apply_soft_merge(out_heads::AbstractArray{P,4}, gates::Vector{P}) where P
+    head_dim, T, n_heads, B = size(out_heads)
+    g_norm = gates ./ sum(gates)
+    out = g_norm[1] .* @view out_heads[:, :, 1, :]
+    for h in 2:n_heads
+        out = out .+ g_norm[h] .* @view out_heads[:, :, h, :]
+    end
+    return out
+end
+```
+
+---
+
 ## Future Optimizations
 
 1. **Kernel fusion**: Combine attention + bias + activation into single kernel
@@ -632,3 +710,4 @@ Thresholds are checked on every commit via `scripts/test_regression.jl`.
 3. **Gradient checkpointing**: Reduce memory at cost of recomputation
 4. **Paged attention**: Efficient KV cache for long contexts
 5. **Distributed training**: Extend `to_device` to multi-GPU
+

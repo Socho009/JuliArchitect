@@ -9,7 +9,8 @@ Core (types, configs, device management)
   ├── Layers (basic building blocks)
   ├── Models (high-level models)
   ├── Data (tokenizers and data loaders)
-  └── Training (optimization and initialization)
+  ├── Training (optimization and initialization)
+  └── FAT (operator learning research module)
 ```
 
 This document explains how these modules interact and why they're organized this way.
@@ -197,6 +198,27 @@ spectral_regularizer(model; λ, power_iters)
 
 ---
 
+### 6. FAT Module (`src/FAT/`)
+
+**Responsibility**: Core research implementation of the Functional Autoregressive Transformer (FAT), functional bases, stabilizers, loss formulations, and head pruning/folding.
+
+**Files**:
+- `phase1_hilbert.jl`: Mathematical foundations of Chebyshev bases, projections, and evaluation.
+- `phase2_spectral_head.jl`: `SpectralHead` layer for mapping representations between hidden dimensions and basis spaces.
+- `phase3_stabilizer.jl`: Enforces non-expansivity ($L_{\Pi} \le 1$) using Chebyshev-only projections.
+- `phase4_loss.jl`: Directional trajectory approval loss + MSE warmup.
+- `phase5_fat_model.jl`: High-level wrapper and AD-safe functional training loop.
+- `phase6_data.jl`: Functional data loading/batching.
+- `phase7_mla.jl`: Multi-Head Latent Attention (MLA) adaptation.
+- `phase8_hardin_taylor.jl`: Hardin-Taylor Minimum-Complexity Prediction (MCP) regularizers.
+- `folding.jl`: Topological folding, CKA head similarity tracking, and soft-merging.
+
+**Design Patterns**:
+- **Purely Functional Operations**: The entire forward pass, loss computation, and stabilization cascade are written without in-place array mutation to remain fully compatible with Zygote automatic differentiation.
+- **Dynamic Intrusion (TrackedAttention)**: For architectural analysis such as topological folding, the module dynamically wraps existing attention blocks in a tracked subtype of `AbstractAttention` using a wrap/unwrap pattern to gather activation stats without altering model definition.
+
+---
+
 ## Cross-Module Interactions
 
 ### Device Transfer Pattern
@@ -297,46 +319,37 @@ end
 
 ## Dependency Graph
 
-```
-┌─────────────────────────────────────┐
-│            Application Code         │
-│  (examples, tests, user scripts)    │
-└────────────────┬────────────────────┘
-                 │
-        ┌────────┴────────┐
-        │                 │
-┌───────▼──────┐  ┌──────▼───────┐
-│   Models     │  │  Training    │
-│              │  │              │
-│ - Continuous │  │ - Optim      │
-│ - Sequence   │  │ - Init       │
-│ - Llama2     │  │ - Spectral   │
-└───┬──────────┘  └──┬───────────┘
-    │                │
-    │        ┌──────▼────┐
-    │        │   Data    │
-    │        │           │
-    │        │ - Tokeniz │
-    │        │ - Loaders │
-    │        └────┬──────┘
-    │             │
-┌───┴──────┬──────┴─────┐
-│          │            │
-│        ┌─▼──────┐     │
-│        │ Layers │◄────┘
-│        │        │
-│        │ - Attn │
-│        │ - Block│
-│        │ - Cell │
-│        └────┬───┘
-│             │
-│        ┌────▼─────┐
-│        │   Core   │
-│        │          │
-│        │ - Types  │
-│        │ - Config │
-│        │ - Device │
-│        └──────────┘
+```mermaid
+flowchart TD
+    App[Application Code<br>examples, tests, scripts] --> FAT
+    App --> Models
+    App --> Training
+
+    subgraph FATModule [FAT Research Module]
+        FAT[FAT Submodule<br>Bases, Projections, Stabilizer, Loss, Folding]
+    end
+
+    FAT --> Models
+    FAT --> Data
+    FAT --> Layers
+    FAT --> Training
+
+    subgraph CoreFramework [Core ML Framework]
+        Models[Models Submodule<br>ContinuousModel, SequenceModel, Llama2]
+        Training[Training Submodule<br>AdamW, Init, Spectral Stats]
+        Data[Data Submodule<br>Tokenizers, Loaders, Functional Data]
+        Layers[Layers Submodule<br>Attention, Block, RNN/LSTM Cells]
+        Core[Core Submodule<br>Types, Config Presets, Device Transfer]
+    end
+
+    Models --> Layers
+    Training --> Data
+    Data --> Layers
+    Layers --> Core
+
+    style FATModule fill:#f5f3ff,stroke:#8b5cf6,stroke-width:2px;
+    style CoreFramework fill:#f0fdf4,stroke:#22c55e,stroke-width:1px;
+    style App fill:#f1f5f9,stroke:#64748b,stroke-width:1px;
 ```
 
 **Key principle**: Lower modules don't depend on higher modules. Core depends on nothing in Architect (only Julia stdlib).

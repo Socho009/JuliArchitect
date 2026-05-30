@@ -13,6 +13,7 @@ This document provides step-by-step guides for common tasks with Architect.jl.
 5. [GPU Acceleration](#gpu-acceleration)
 6. [Performance Optimization](#performance-optimization)
 7. [Debugging & Troubleshooting](#debugging--troubleshooting)
+8. [Topological Folding Analysis](#topological-folding-analysis)
 
 ---
 
@@ -503,6 +504,73 @@ output = generate(model, prompt_ids;
                   max_new_tokens=50)
 generated = decode(tokenizer, vec(output))
 println(generated)
+```
+
+---
+
+---
+
+## Topological Folding Analysis
+
+This guide explains how to use the topological folding utilities to analyze and proposal merges for redundant attention heads in your model.
+
+### Step 1: Instrument the Model with TrackedAttention
+To capture head outputs without modifying your model definition, use `wrap_attentions!`. This replaces the `Attention` block of each layer with a `TrackedAttention` wrapper.
+
+```julia
+using Architect.FAT: ProbeCollector, wrap_attentions!
+
+# 1. Initialize the collector
+collector = ProbeCollector{Float32}()
+
+# 2. Instrument the model
+wrap_attentions!(model, collector)
+```
+
+### Step 2: Run Batches to Collect Activations
+Run several forward passes through the model on representative inputs. The `TrackedAttention` layers will append the head outputs directly to your collector.
+
+```julia
+using Architect.Data: next_batch
+
+# Run 16 batches to collect statistical representations
+for i in 1:16
+    input, target = next_batch(loader)
+    # Forward pass
+    _ = model(input)
+end
+```
+
+### Step 3: Compute Head Similarity (CKA)
+Remove the wrappers to return the model to its original state using `unwrap_attentions!`, then compute CKA (Centered Kernel Alignment) similarities between all heads:
+
+```julia
+using Architect.FAT: unwrap_attentions!, compute_similarity, save_similarity_csv
+
+# 1. Restore original model structures
+unwrap_attentions!(model)
+
+# 2. Compute similarity matrix
+sim, keys = compute_similarity(collector; metric=:cka)
+
+# 3. Optionally save similarity to a CSV file
+save_similarity_csv(sim, keys, "results/head_similarities.csv")
+```
+
+### Step 4: Propose Clusters for Folding
+Group heads together that exhibit similarity above a specific threshold (typically `0.85` to `0.92` for CKA):
+
+```julia
+using Architect.FAT: propose_clusters
+
+# Find groups of heads representing redundant subspaces
+clusters = propose_clusters(sim, keys; threshold=0.90f0)
+
+for (idx, cluster) in enumerate(clusters)
+    if length(cluster) > 1
+        println("Cluster $idx can be merged: $cluster")
+    end
+end
 ```
 
 ---

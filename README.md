@@ -70,16 +70,23 @@ Unitize with floor $\varepsilon$: $\nu=\Delta/(\|\Delta\|+\varepsilon)$. Flow lo
 $$\mathcal{L}_{\mathrm{flow}}=1-\mathbb{E}_t[\langle\nu^{\mathrm{pred}}_t,\nu^*_t\rangle].$$
 Blend with MSE: $\mathcal{L}_t=\alpha_t\mathcal{L}_{\mathrm{flow}}+(1-\alpha_t)\mathrm{MSE}(\cdot)$.
 
+**Topological Folding (Simplicity Pressure)**
+Calculate Centered Kernel Alignment (CKA) between intermediate activations $X_i, X_j$:
+$$\text{CKA}(X_i, X_j) = \frac{\| (X_i^c)^\top X_j^c \|_F^2}{\| (X_i^c)^\top X_i^c \|_F \| (X_j^c)^\top X_j^c \|_F}$$
+For clusters with similarity exceeding threshold, combine head outputs:
+$$\mathbf{y}_{\text{merged}} = \sum_{c=1}^C \frac{e^{g_c}}{\sum_k e^{g_k}} \mathbf{y}_c$$
+
 **Training & generation (compact)**
-Train: $\min_\psi\mathbb{E}[\mathcal{L}_t]+\lambda R(\psi)$ (AD, AdamW, grad clip).
+Train: $\min_\psi\mathbb{E}[\mathcal{L}_t] + \lambda_{\text{spec}} R_{\text{spec}}(\psi) + \lambda_{\text{sparsity}} R_{\text{sparsity}}(g)$ (AD, AdamW, grad clip).
 Generate step: $\Theta_{t+1}=\Pi(G_\psi(\Theta_{t-L+1:t}))$.
 
 **Intuition (ML master level)**
 - Coefficients = compact function descriptors; FAT learns dynamics in coefficient space.
 - $\Pi$ enforces stability by projecting into a low-order, energy-efficient subspace.
 - Approval loss teaches *directional* dynamics rather than absolute magnitudes (robust to scale).
+- Folding reduces head redundancy, scaling down model complexity alongside output complexity.
 
-**Code map / checks**: `src/FAT/phase1_hilbert.jl`, `phase2_spectral_head.jl`, `phase3_stabilizer.jl`, `phase4_loss.jl`, `phase5_fat_model.jl`.
+**Code map / checks**: `src/FAT/phase1_hilbert.jl`, `phase2_spectral_head.jl`, `phase3_stabilizer.jl`, `phase4_loss.jl`, `phase5_fat_model.jl`, `folding.jl`.
 
 **Teaching diagram (flowchart)**
 
@@ -200,6 +207,14 @@ where $\Theta_t^*$ are ground-truth coefficients (teacher-forced from training d
 
 **Benefit**: Robust to coefficient scaling; aligns model updates toward target trajectory in spectral space; connection to Flow Matching literature.
 
+### 4. **Topological Folding (Simplicity & Compression)**
+
+**Problem**: Attention heads and representations often become redundant during continuous function mapping, leading to high computational complexity and over-parameterization.
+
+**Solution**: Dynamically identify and soft-merge redundant heads based on Centered Kernel Alignment (CKA) similarity. Fine-tune learnable gate weights, and collapse them into a hard-merged state once converged.
+
+**Benefit**: Promotes structural simplicity alongside representation simplicity; achieves significant parameter and computational footprint reduction with minimal loss in accuracy.
+
 ---
 
 ## Theoretical Foundation
@@ -302,6 +317,7 @@ Coefficient Input (basis_dim × seq_len × batch)
 - Learns emergent mathematical operators via self-attention
 - Directional trajectory approval loss (mutation-free, AD-compatible)
 - Three canonical tasks: derivative, antiderivative, Taylor expansion
+- **Topological Folding** (head and MLP block merging via CKA similarity and soft/hard merge gates)
 
 **Theoretical Foundation**: Section 3 of [Functional Autoregressive Transformers](https://arxiv.org/abs/2405.xxxxx) (submitted).
 
@@ -525,6 +541,7 @@ julia --project scripts/compare_results.jl \
 │       ├── phase4_loss.jl             ← Directional trajectory loss
 │       ├── phase5_fat_model.jl        ← Full FAT model assembly
 │       ├── phase6_data.jl             ← Continuous data streams
+│       ├── folding.jl                 ← Topological folding (head merging)
 │       └── FAT.jl
 │
 ├── test/
@@ -599,6 +616,7 @@ julia --project scripts/compare_results.jl \
 ✅ Reference implementation (mutation-free, Zygote AD-compatible)  
 ✅ Benchmarking infrastructure (parameter counts, inference latency)  
 ✅ Regression testing pipeline  
+✅ Topological folding and CKA analysis prototype (Phase 9)
 
 **Status**: Research prototype validated; ready for empirical studies.
 

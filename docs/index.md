@@ -313,6 +313,21 @@ coeffs_in = randn(Float32, 8, 16, 32)  # (basis_dim, seq, batch)
 coeffs_out = fat_model(coeffs_in)
 ```
 
+#### Phase 9: Topological Folding
+```julia
+using Architect.FAT: ProbeCollector, wrap_attentions!, collect_head_activations,
+                      compute_similarity, propose_clusters
+
+# 1. Collect intermediate head activations
+collector = collect_head_activations(model, loader; nbatches=20)
+
+# 2. Compute CKA similarities between all heads
+sim, keys = compute_similarity(collector; metric=:cka)
+
+# 3. Propose head clusters to fold based on similarity threshold
+clusters = propose_clusters(sim, keys; threshold=0.92f0)
+```
+
 ---
 
 ## Architecture Paradigms
