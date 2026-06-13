@@ -59,24 +59,24 @@ Functional Autoregressive Transformer — predicts the next function
 in a sequence, represented as coefficient vectors in a chosen basis.
 
 Architecture:
-  coefficient_encoder: Linear(basis_dim → n_embd)  ← replaces Embedding lookup
+  coeff_embed: Linear(basis_dim → n_embd)  ← replaces Embedding lookup
   blocks: Block{P}[]                      ← IDENTICAL to GPT
   ln_f: Norm{P}                                   ← same as GPT
-  coefficient_head: Linear(n_embd → basis_dim)       ← replaces softmax head
+  spectral_head: Linear(n_embd → basis_dim)       ← replaces softmax head
 """
 struct ContinuousModel{P<:AbstractFloat}
     config::ContinuousConfig{P}
-    coeff_encoder::Linear{P, true}    # (basis_dim → n_embd) with bias
+    coeff_embed::Linear{P, true}      # (basis_dim → n_embd) with bias
     blocks::Vector{Block{P}}
     ln_f::Norm{P}
-    coeff_head::Linear{P, true}       # (n_embd → basis_dim) regression head
+    spectral_head::Linear{P, true}    # (n_embd → basis_dim) regression head
     dropout_rate::P
 end
 
 function ContinuousModel(config::ContinuousConfig{P}) where P
     @assert config.n_embd % config.n_head == 0
 
-    coeff_encoder = Linear{P}(config.basis_dim, config.n_embd; bias=true)
+    coeff_embed = Linear{P}(config.basis_dim, config.n_embd; bias=true)
 
     # Build blocks with Linear-only attention (no OrthogonalLinear) for AD compatibility
     n_embd = config.n_embd
@@ -91,10 +91,10 @@ function ContinuousModel(config::ContinuousConfig{P}) where P
     end
 
     ln_f = Norm{P}(config.n_embd)
-    coeff_head = Linear{P}(config.n_embd, config.basis_dim; bias=true)
+    spectral_head = Linear{P}(config.n_embd, config.basis_dim; bias=true)
 
-    ContinuousModel{P}(config, coeff_encoder, blocks, ln_f,
-                        coeff_head, config.dropout)
+    ContinuousModel{P}(config, coeff_embed, blocks, ln_f,
+                        spectral_head, config.dropout)
 end
 
 function Base.show(io::IO, m::ContinuousModel{P}) where P
@@ -123,9 +123,9 @@ function forward(model::ContinuousModel{P}, coeffs::AbstractArray{P, 3};
     basis_dim, T, B = size(coeffs)
 
     # 1. Encode coefficients → embeddings (no mutation)
-    #    coeff_encoder.weight: (n_embd, basis_dim), coeffs reshaped: (basis_dim, T*B)
+    #    coeff_embed.weight: (n_embd, basis_dim), coeffs reshaped: (basis_dim, T*B)
     coeffs_2d = reshape(coeffs, basis_dim, T * B)
-    x_2d = model.coeff_encoder(coeffs_2d)  # (n_embd, T*B)
+    x_2d = model.coeff_embed(coeffs_2d)  # (n_embd, T*B)
     n_embd = size(x_2d, 1)
     x = reshape(x_2d, n_embd, T, B)
 
@@ -139,7 +139,7 @@ function forward(model::ContinuousModel{P}, coeffs::AbstractArray{P, 3};
 
     # 5. Coefficient head (no mutation)
     x_2d_out = reshape(x, n_embd, T * B)
-    pred_2d = model.coeff_head(x_2d_out)  # (basis_dim, T*B)
+    pred_2d = model.spectral_head(x_2d_out)  # (basis_dim, T*B)
     predicted = reshape(pred_2d, basis_dim, T, B)
 
     # 6. Loss: MSE in coefficient space
@@ -249,9 +249,9 @@ end
 import ..Core
 
 function Core.to_device(model::ContinuousModel{P}, device::Symbol) where P
-    coeff_encoder_new = to_device(model.coeff_encoder, device)
+    coeff_embed_new = to_device(model.coeff_embed, device)
     blocks_new = [to_device(b, device) for b in model.blocks]
     ln_f_new = to_device(model.ln_f, device)
-    coeff_head_new = to_device(model.coeff_head, device)
-    return ContinuousModel{P}(model.config, coeff_encoder_new, blocks_new, ln_f_new, coeff_head_new, model.dropout_rate)
+    spectral_head_new = to_device(model.spectral_head, device)
+    return ContinuousModel{P}(model.config, coeff_embed_new, blocks_new, ln_f_new, spectral_head_new, model.dropout_rate)
 end

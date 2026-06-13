@@ -166,3 +166,20 @@ end
 Return a callable that generates batches, matching the training loop interface.
 """
 make_continuous_batch_fn(loader::ContinuousTimeDataLoader) = () -> next_batch(loader)
+
+"""
+    train!(model::FunctionalAutoregressiveTransformer, loader::ContinuousTimeDataLoader, config::FATTrainConfig)
+
+Canonical dataloader-based training entry point for FAT models.
+"""
+function train!(model::FunctionalAutoregressiveTransformer{P},
+                loader::ContinuousTimeDataLoader{P},
+                config::FATTrainConfig{P}) where {P<:AbstractFloat}
+    return fat_train!(model, make_continuous_batch_fn(loader), config)
+end
+
+function fat_train!(model::FunctionalAutoregressiveTransformer{P},
+                    loader::ContinuousTimeDataLoader{P},
+                    config::FATTrainConfig{P}) where {P<:AbstractFloat}
+    return fat_train!(model, make_continuous_batch_fn(loader), config)
+end

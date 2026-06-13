@@ -45,7 +45,7 @@ export FunctionSequenceLoader, next_batch, make_functional_batch_fn
 export differentiate_coeffs, antidifferentiate_coeffs, taylor_coefficients
 
 # Re-exporting from Training
-export TrainConfig, train!
+export TrainConfig, ContinuousTrainConfig, train!
 export ParamGroup, DecayGroup, NoDecayGroup, param_group
 export collect_params, TrainState
 export initialize!

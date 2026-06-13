@@ -9,7 +9,7 @@ using Random
 using Statistics
 
 # ─── Exports ────────────────────────────────────────────────────────────────
-export TrainConfig, train!
+export TrainConfig, ContinuousTrainConfig, train!
 export ParamGroup, DecayGroup, NoDecayGroup, param_group
 export collect_params, TrainState
 export compute_recurrent_spectral_stats

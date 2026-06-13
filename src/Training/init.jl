@@ -260,7 +260,7 @@ Initialize all weights in a ContinuousModel by recursively dispatching
 to each layer's initialization method.
 """
 function initialize!(model::ContinuousModel; muP::Bool=false)
-    initialize!(model.coeff_encoder; std=0.02, muP=muP)
+    initialize!(model.coeff_embed; std=0.02, muP=muP)
     
     n_layers = length(model.blocks)
     for block in model.blocks
@@ -268,7 +268,7 @@ function initialize!(model::ContinuousModel; muP::Bool=false)
     end
     
     initialize!(model.ln_f)
-    initialize!(model.coeff_head; std=0.02, muP=muP)
+    initialize!(model.spectral_head; std=0.02, muP=muP)
     
     return model
 end

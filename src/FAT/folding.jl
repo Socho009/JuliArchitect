@@ -192,7 +192,7 @@ function collect_head_activations(model, loader, next_batch_fn::Function; nbatch
 
             # Run the standard forward pass — TrackedAttention records per-head outputs
             coeffs_2d = reshape(input, basis_dim, T * B)
-            x_2d = model.coeff_encoder(coeffs_2d)  # (n_embd, T*B)
+            x_2d = model.coeff_embed(coeffs_2d)  # (n_embd, T*B)
             n_embd = size(x_2d, 1)
             x = reshape(x_2d, n_embd, T, B)
 
@@ -203,7 +203,7 @@ function collect_head_activations(model, loader, next_batch_fn::Function; nbatch
             # Final norm + head (not needed for collection, but keeps pipeline complete)
             x = model.ln_f(x)
             x_2d_out = reshape(x, size(x,1), T * B)
-            _ = model.coeff_head(x_2d_out)
+            _ = model.spectral_head(x_2d_out)
         end
     finally
         # Always restore original attention layers

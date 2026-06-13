@@ -627,7 +627,6 @@ cfg = ContinuousConfig(
 )
 
 model = ContinuousModel(cfg)
-batch_fn = make_functional_batch_fn(loader)
 
 train_cfg = Architect.Training.ContinuousTrainConfig{Float32}(
     max_iters = 100,
@@ -635,7 +634,7 @@ train_cfg = Architect.Training.ContinuousTrainConfig{Float32}(
     log_interval = 20
 )
 
-state = Architect.Training.train!(model, batch_fn, train_cfg)
+state = train!(model, loader, train_cfg)
 ```
 
 ### Evaluate a Chebyshev State
@@ -706,6 +705,16 @@ context_length(model)
 `ContinuousModel` and `FunctionalAutoregressiveTransformer` keep their original
 fields for compatibility, but new shared code should prefer these accessors.
 
+`RolloutMetrics` reports:
+
+- one-step MSE
+- rollout MSE
+- coefficient/Hilbert norm errors
+- spectral energy and spectral energy drift
+- stabilizer contraction ratios
+- coefficient complexity
+- per-step error growth ratios
+
 ## Training and Data
 
 ### FunctionSequenceLoader
@@ -730,10 +739,18 @@ targets.
 
 The codebase contains two training paths:
 
-- `Architect.Training.train!` for `ContinuousModel` with Zygote AD in
+- `train!` for `ContinuousModel` with Zygote AD in
   `functional_train.jl`
 - `fat_train!` for `FunctionalAutoregressiveTransformer` with FAT-specific
   directional loss, AdamW state, weight decay, and gradient clipping
+
+The canonical public style is:
+
+```julia
+train!(model, dataloader, config)
+```
+
+Function-valued batch providers are still supported for lower-level scripts.
 
 Older classical training utilities are also present for compatibility with the
 general model tests.
@@ -792,8 +809,11 @@ standard Lean toolchain behavior.
 
 ```text
 scripts/benchmark_function_rollouts.jl
-  Clean derivative/oscillator/heat rollout suite. Trains compact FAT ablations,
-  saves CSV metrics, and writes dependency-free SVG rollout-error plots.
+  Clean derivative/oscillator/heat rollout suite. Compares FAT variants against
+  ContinuousModel, persistence, and oracle-linear baselines, then writes CSV
+  metrics and dependency-free SVG rollout-error plots.
+  Each run writes config, git commit, losses, metrics JSON, rollout samples,
+  CSV curves, and plots under results/rollout_suite/ by default.
 
 scripts/ablation_stabilizer_approval.jl
   Convenience entry point for the rollout ablation suite.

@@ -54,8 +54,8 @@ Collect (param_array, should_decay) pairs from ContinuousModel.
 function _collect_functional_params(model::ContinuousModel{P}) where P
     params = Tuple{AbstractArray{P}, Bool}[]
 
-    push!(params, (model.coeff_encoder.weight, true))
-    push!(params, (model.coeff_encoder.bias, false))
+    push!(params, (model.coeff_embed.weight, true))
+    push!(params, (model.coeff_embed.bias, false))
 
 
     for block in model.blocks
@@ -79,8 +79,8 @@ function _collect_functional_params(model::ContinuousModel{P}) where P
     end
 
     push!(params, (model.ln_f.weight, false))
-    push!(params, (model.coeff_head.weight, true))
-    push!(params, (model.coeff_head.bias, false))
+    push!(params, (model.spectral_head.weight, true))
+    push!(params, (model.spectral_head.bias, false))
 
     return params
 end
@@ -168,6 +168,17 @@ function train!(model::ContinuousModel{P}, data_fn, config::ContinuousTrainConfi
     return TrainState{P}(losses, config.max_iters)
 end
 
+"""
+    train!(model::ContinuousModel, loader::FunctionSequenceLoader, config::ContinuousTrainConfig)
+
+Canonical dataloader-based training entry point for `ContinuousModel`.
+"""
+function train!(model::ContinuousModel{P},
+                loader::FunctionSequenceLoader{P},
+                config::ContinuousTrainConfig{P}) where {P<:AbstractFloat}
+    return train!(model, make_functional_batch_fn(loader), config)
+end
+
 # ─── Gradient Extraction from Zygote Structural Gradients ─────────────────────
 
 """
@@ -179,8 +190,8 @@ in the same order as `_collect_functional_params`.
 function _extract_grads(gs, model::ContinuousModel{P}) where P
     grads = Union{Nothing, AbstractArray}[]
 
-    _push_grad!(grads, gs, :coeff_encoder, :weight)
-    _push_grad!(grads, gs, :coeff_encoder, :bias)
+    _push_grad!(grads, gs, :coeff_embed, :weight)
+    _push_grad!(grads, gs, :coeff_embed, :bias)
 
 
     blocks_g = _field(gs, :blocks)
@@ -190,8 +201,8 @@ function _extract_grads(gs, model::ContinuousModel{P}) where P
     end
 
     _push_grad!(grads, gs, :ln_f, :weight)
-    _push_grad!(grads, gs, :coeff_head, :weight)
-    _push_grad!(grads, gs, :coeff_head, :bias)
+    _push_grad!(grads, gs, :spectral_head, :weight)
+    _push_grad!(grads, gs, :spectral_head, :bias)
 
     return grads
 end

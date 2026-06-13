@@ -121,6 +121,27 @@ For each task, the benchmark compares:
 The expected scientific outcome is not merely lower one-step MSE. The target is
 controlled long-horizon error growth with the stabilizer active.
 
+The benchmark writes the reproducibility bundle required for comparing runs:
+
+- config and command arguments
+- git commit and dirty flag
+- random seed
+- per-iteration losses
+- aggregate metrics
+- full metrics vectors
+- generated rollout samples
+- CSV curves
+- SVG plots
+
+The canonical metric set is:
+
+- one-step MSE
+- rollout MSE
+- coefficient/Hilbert norm error
+- spectral energy drift
+- stabilizer contraction ratio
+- coefficient complexity
+
 ## Refactoring Rule
 
 Every future abstraction should preserve this chain:

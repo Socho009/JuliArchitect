@@ -163,9 +163,9 @@ Weight decay rules:
 function collect_params(model::ContinuousModel{P}) where P
     param_infos = ParamInfo{P}[]
 
-    push!(param_infos, ParamInfo{P}(model.coeff_encoder.weight, true))
-    if has_bias(model.coeff_encoder)
-        push!(param_infos, ParamInfo{P}(model.coeff_encoder.bias, false))
+    push!(param_infos, ParamInfo{P}(model.coeff_embed.weight, true))
+    if has_bias(model.coeff_embed)
+        push!(param_infos, ParamInfo{P}(model.coeff_embed.bias, false))
     end
 
     # Transformer blocks
@@ -218,9 +218,9 @@ function collect_params(model::ContinuousModel{P}) where P
     push!(param_infos, ParamInfo{P}(model.ln_f.weight, false))
 
     # Coefficient head
-    push!(param_infos, ParamInfo{P}(model.coeff_head.weight, true))
-    if has_bias(model.coeff_head)
-        push!(param_infos, ParamInfo{P}(model.coeff_head.bias, false))
+    push!(param_infos, ParamInfo{P}(model.spectral_head.weight, true))
+    if has_bias(model.spectral_head)
+        push!(param_infos, ParamInfo{P}(model.spectral_head.bias, false))
     end
 
     return param_infos
@@ -500,7 +500,7 @@ function compute_spectral_stats(model; power_iters::Int=8) where P<:AbstractFloa
     end
 
     # Head
-    head = hasproperty(model, :coeff_head) ? model.coeff_head : (hasproperty(model, :decoder) ? model.decoder : (hasproperty(model, :lm_head) ? model.lm_head : nothing))
+    head = hasproperty(model, :spectral_head) ? model.spectral_head : (hasproperty(model, :decoder) ? model.decoder : (hasproperty(model, :lm_head) ? model.lm_head : nothing))
     if head !== nothing
         if isa(head, Linear)
             stats["head_sigma"] = power_iteration(head.weight; num_iters=power_iters)
@@ -568,7 +568,7 @@ function spectral_regularizer(model; λ::Real=1e-3, power_iters::Int=8) where P<
     end
 
     # Head
-    head = hasproperty(model, :coeff_head) ? model.coeff_head : (hasproperty(model, :decoder) ? model.decoder : (hasproperty(model, :lm_head) ? model.lm_head : nothing))
+    head = hasproperty(model, :spectral_head) ? model.spectral_head : (hasproperty(model, :decoder) ? model.decoder : (hasproperty(model, :lm_head) ? model.lm_head : nothing))
     if head !== nothing
         if isa(head, Linear)
             s_lm = power_iteration(head.weight; num_iters=power_iters)
@@ -882,4 +882,3 @@ function _cell_spectral_stats!(stats, cell::GRUCell{P}, idx::Int, power_iters::I
     stats["cell_$idx.W_hr_sigma"] = power_iteration(cell.W_hr.weight; num_iters=power_iters)
     stats["cell_$idx.W_hn_sigma"] = power_iteration(cell.W_hn.weight; num_iters=power_iters)
 end
-

@@ -70,9 +70,9 @@ function main()
         
         # ── Collect trainable parameters ──────────────────────────────────
         params = Tuple{AbstractArray, Bool}[]   # (array, should_decay)
-        # coeff_encoder
-        push!(params, (model.coeff_encoder.weight, true))
-        push!(params, (model.coeff_encoder.bias,   false))
+        # coeff_embed
+        push!(params, (model.coeff_embed.weight, true))
+        push!(params, (model.coeff_embed.bias,   false))
         # blocks
         for block in model.blocks
             push!(params, (block.ln1.weight, false))
@@ -98,10 +98,10 @@ function main()
             push!(params, (block.feedforward.W2.weight, true))
             push!(params, (block.feedforward.W3.weight, true))
         end
-        # ln_f and coeff_head
+        # ln_f and spectral_head
         push!(params, (model.ln_f.weight, false))
-        push!(params, (model.coeff_head.weight, true))
-        push!(params, (model.coeff_head.bias,   false))
+        push!(params, (model.spectral_head.weight, true))
+        push!(params, (model.spectral_head.bias,   false))
 
         n_params = sum(length(p) for (p, _) in params)
         println("  Trainable parameters: $n_params")
@@ -126,7 +126,7 @@ function main()
             loss_val, model_grad = Zygote.withgradient(model) do m
                 bd, T, B = size(input)
                 coeffs_2d = reshape(input, bd, T * B)
-                x_2d = m.coeff_encoder(coeffs_2d)
+                x_2d = m.coeff_embed(coeffs_2d)
                 ne = size(x_2d, 1)
                 x = reshape(x_2d, ne, T, B)
                 
@@ -136,7 +136,7 @@ function main()
                 
                 x = m.ln_f(x)
                 x_2d_out = reshape(x, size(x, 1), T * B)
-                pred = m.coeff_head(x_2d_out)
+                pred = m.spectral_head(x_2d_out)
                 
                 # MSE loss
                 sum(abs2, pred .- target_2d) / P(size(pred, 1) * T * B)
@@ -293,8 +293,8 @@ end
 function _extract_grads_continuous(gs, model)
     grads = Union{Nothing, AbstractArray}[]
     
-    # coeff_encoder
-    enc_g = _safe_field(gs, :coeff_encoder)
+    # coeff_embed
+    enc_g = _safe_field(gs, :coeff_embed)
     push!(grads, _safe_field(enc_g, :weight))
     push!(grads, _safe_field(enc_g, :bias))
     
@@ -349,8 +349,8 @@ function _extract_grads_continuous(gs, model)
     lnfg = _safe_field(gs, :ln_f)
     push!(grads, _safe_field(lnfg, :weight))
     
-    # coeff_head
-    headg = _safe_field(gs, :coeff_head)
+    # spectral_head
+    headg = _safe_field(gs, :spectral_head)
     push!(grads, _safe_field(headg, :weight))
     push!(grads, _safe_field(headg, :bias))
     

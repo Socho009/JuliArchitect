@@ -47,6 +47,7 @@ import ..Core
 import ..Core: AbstractModelConfig
 import ..Models: ContinuousModel, generate
 import ..Models: coefficient_encoder, coefficient_head, coefficient_dimension, context_length
+import ..Data: FunctionSequenceLoader, make_functional_batch_fn
 import ..Training: train!
 import ..Layers: AbstractLayer, AbstractAttention, Linear, Norm, Attention, Block, FeedForward
 import ..Layers: has_bias, _batched_attention_scores, _apply_causal_mask, _softmax, _dropout

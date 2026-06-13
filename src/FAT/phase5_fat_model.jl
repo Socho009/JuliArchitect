@@ -766,6 +766,9 @@ function Base.getproperty(model::FunctionalAutoregressiveTransformer, name::Symb
     end
 end
 
+Base.propertynames(model::FunctionalAutoregressiveTransformer, private::Bool=false) =
+    (:config, :coeff_embed, :blocks, :ln_f, :spectral_head, :stabilizer, :coeff_encoder, :coeff_head)
+
 """
     train!(model::FunctionalAutoregressiveTransformer, data_fn, config::FATTrainConfig)
 
@@ -773,3 +776,17 @@ Canonical training entry point for FAT models. Dispatches to `fat_train!`.
 """
 train!(model::FunctionalAutoregressiveTransformer{T}, data_fn, config::FATTrainConfig{T}) where {T<:AbstractFloat} =
     fat_train!(model, data_fn, config)
+
+function train!(model::FunctionalAutoregressiveTransformer{T},
+                loader::FunctionSequenceLoader{T},
+                config::FATTrainConfig{T}) where {T<:AbstractFloat}
+    @assert loader.basis_dim == model.config.K + 1 "loader basis_dim=$(loader.basis_dim) must equal K+1=$(model.config.K + 1)"
+    return fat_train!(model, make_functional_batch_fn(loader), config)
+end
+
+function fat_train!(model::FunctionalAutoregressiveTransformer{T},
+                    loader::FunctionSequenceLoader{T},
+                    config::FATTrainConfig{T}) where {T<:AbstractFloat}
+    @assert loader.basis_dim == model.config.K + 1 "loader basis_dim=$(loader.basis_dim) must equal K+1=$(model.config.K + 1)"
+    return fat_train!(model, make_functional_batch_fn(loader), config)
+end
