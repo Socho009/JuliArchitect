@@ -1,14 +1,16 @@
-# Architect.jl
+# AetherSpaces.jl
 
-Architect.jl is a Julia research codebase for sequence models and functional
-autoregression. It contains conventional language-model building blocks
-(transformer, recurrent models, tokenizers, training loops, and a llama2.c
-checkpoint reader) plus the main research track: the Functional
-Autoregressive Transformer (FAT).
+AetherSpaces.jl is the project goal: a Julia research system for continuous
+functional AI that routes spectral trajectories through classical and exotic
+mathematical spaces. The current implementation package is still named
+`Architect.jl`; that package contains the Functional Autoregressive Transformer
+(FAT), the experimental `Spaces` subsystem, conventional sequence-model
+building blocks, training code, benchmarks, and formal proof work.
 
-The FAT branch studies a replacement for next-token classification:
-represent each step as a function, encode that function by spectral
-coefficients, and autoregress directly in coefficient space.
+The central direction is Aether: move beyond one-step token or scalar
+prediction by representing each step as a function, encoding that function by
+spectral coefficients, autoregressing in coefficient space, and then evaluating
+the resulting trajectory through multiple mathematical spaces.
 
 Current status: research prototype. The core package loads as a local Julia
 package, the main models and tests live under `src/` and `test/`, FAT theory is
@@ -18,6 +20,7 @@ exercise benchmarks, folding probes, and fractional collocation experiments.
 ## Contents
 
 - [Core Idea](#core-idea)
+- [Aether Project Goal](#aether-project-goal)
 - [Research Contributions](#research-contributions)
 - [Unified Mathematical Framework](#unified-mathematical-framework)
 - [Mathematical Model](#mathematical-model)
@@ -64,6 +67,46 @@ spaces from discrete IDs to continuous function descriptors.
 
 The discrete LM case is recovered when `K = 0`: every function is constant, so
 each step is a scalar coefficient.
+
+## Aether Project Goal
+
+**AetherSpaces.jl** is the target identity for the project. The goal is to turn
+the current FAT and `Spaces` code into a coherent system for continuous
+trajectory modeling, geometric diagnostics, and eventually invariant-aware
+training. In the current codebase, the Aether layer is implemented as the
+experimental `src/Spaces/` subsystem inside `Architect.jl`; the repository has
+not yet been mechanically renamed.
+
+Tagline:
+
+> A mathematical lens stack for functional trajectories and structural
+> invariants.
+
+The practical goal is to let FAT keep its stable Chebyshev coefficient path
+while adding opt-in views into non-Euclidean, weighted, fractional, tropical,
+ultrametric, sheaf-style, and categorical diagnostic spaces. These spaces are
+not ordinary deep-learning layers in v1. They are deterministic adapters with
+native distances, projections, regularizers, metadata, and stack utilities.
+
+Technically, AetherSpaces is a multiple-dispatch interface for mapping spectral
+coefficient trajectories into eight mathematical spaces, computing native
+metrics or residuals, and mapping back to coefficient space where that operation
+is well-defined. It is designed to support future geometric regularization and
+invariant-aware training without changing the default FAT forward pass.
+
+The public-facing intuition is an eight-lens compass for continuous AI: the
+model's coefficient trajectories can be inspected through several mathematical
+views instead of only through one-step Euclidean error. Today this helps measure
+structure, drift, weighted error, local-to-global consistency, and algebraic
+residuals. The research goal is stronger: use those diagnostics as regularizers
+and eventually as proof targets for models that preserve more of the geometry
+of the systems they generate.
+
+Current boundary: AetherSpaces does not yet prove gauge covariance, does not
+force invariants by itself, and does not make arbitrary models incapable of
+rollout drift. The proof-backed non-expansive component remains the Chebyshev
+stabilizer in the FAT path. AetherSpaces is the experimental bridge toward a
+broader unified mathematical state space.
 
 ## Research Contributions
 
@@ -720,9 +763,22 @@ fields for compatibility, but new shared code should prefer these accessors.
 
 ## Unified Spaces API
 
-`src/Spaces/Spaces.jl` adds an opt-in experimental interface for exotic
-mathematical views over coefficient trajectories. It does not change the
-default FAT forward path.
+The AetherSpaces implementation currently lives in `src/Spaces/Spaces.jl`.
+It adds an opt-in experimental interface for mathematical views over
+coefficient trajectories. It does not change the default FAT forward path, and
+normal FAT training, generation, and rollout evaluation work without passing any
+spaces.
+
+The subsystem is intentionally interface-first. Each space can define how
+spectral coefficients are represented, projected, measured, regularized, and
+summarized. This gives experiments a common way to ask questions such as:
+
+- How large is the trajectory error under a native metric?
+- Does a projection keep coefficients inside the intended space?
+- Does a local-to-global or diagram consistency residual expose structure that
+  one-step MSE misses?
+- Can these residuals become future training penalties without destabilizing the
+  Chebyshev FAT path?
 
 Primary exports:
 
@@ -748,6 +804,26 @@ apply_space_stack
 space_stack_regularizer
 space_stack_metrics
 ```
+
+Implemented spaces:
+
+- `MetricSpace`: Euclidean, weighted, and diagonal metric adapters.
+- `MeasureSpace`: coefficient or node weighting for weighted norms.
+- `TopologicalChartSpace`: local chart views and chart consistency residuals.
+- `FractionalOperatorSpace`: deterministic fractional-operator diagnostics.
+- `TropicalSpace`: max-plus/min-plus coefficient views.
+- `UltrametricSpace`: p-adic-inspired hierarchical scale diagnostics.
+- `SheafConsistencySpace`: local sections and gluing residuals.
+- `CategoricalBridgeSpace`: map composition and commutator residuals.
+
+Current limits:
+
+- The spaces are deterministic adapters and diagnostics, not trainable neural
+  layers.
+- Space regularizers are available as scalar penalties, but they are not yet
+  wired into every training script.
+- Invariant preservation is a research target, not a global guarantee.
+- The classical Chebyshev stabilizer remains the only proof-backed stabilizer.
 
 The detailed guide is `docs/unified_spaces.md`.
 
