@@ -27,6 +27,7 @@ exercise benchmarks, folding probes, and fractional collocation experiments.
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [FAT API](#fat-api)
+- [Unified Spaces API](#unified-spaces-api)
 - [Training and Data](#training-and-data)
 - [Topological Folding](#topological-folding)
 - [Formal Proofs](#formal-proofs)
@@ -547,6 +548,8 @@ src/
     phase8_hardin_taylor.jl complexity regularizer and climbing generation
     folding.jl              CKA head probing and soft merge prototype
     fractional.jl           fractional collocation solver
+  Spaces/
+    Spaces.jl               opt-in exotic mathematical space adapters
 
 scripts/                     experiments, probes, benchmarks
 test/                        Julia test suite
@@ -715,6 +718,39 @@ fields for compatibility, but new shared code should prefer these accessors.
 - coefficient complexity
 - per-step error growth ratios
 
+## Unified Spaces API
+
+`src/Spaces/Spaces.jl` adds an opt-in experimental interface for exotic
+mathematical views over coefficient trajectories. It does not change the
+default FAT forward path.
+
+Primary exports:
+
+```julia
+AbstractMathSpace
+SpaceState
+MetricSpace
+MeasureSpace
+TopologicalChartSpace
+FractionalOperatorSpace
+TropicalSpace
+UltrametricSpace
+SheafConsistencySpace
+CategoricalBridgeSpace
+
+to_space
+from_space
+space_distance
+space_project
+space_regularizer
+space_metadata
+apply_space_stack
+space_stack_regularizer
+space_stack_metrics
+```
+
+The detailed guide is `docs/unified_spaces.md`.
+
 ## Training and Data
 
 ### FunctionSequenceLoader
@@ -818,6 +854,10 @@ scripts/benchmark_function_rollouts.jl
 scripts/ablation_stabilizer_approval.jl
   Convenience entry point for the rollout ablation suite.
 
+scripts/probe_unified_spaces.jl
+  Diagnostic probe for all eight experimental mathematical spaces. Writes a
+  CSV report under results/unified_spaces/ by default.
+
 scripts/benchmark_fat.jl
   Train ContinuousModel and FAT on continuous-time data and compare loss/time.
 
@@ -870,6 +910,7 @@ Current test files cover:
 - training utilities
 - llama2 checkpoint code
 - fractional solver
+- unified mathematical spaces
 
 There is also a Python-side test under `tests/test_huggingface_import.py`.
 
@@ -877,7 +918,8 @@ There is also a Python-side test under `tests/test_huggingface_import.py`.
 
 A shorter research contract lives in `docs/theory.md`. It states the learning
 problem, error decomposition target, stabilizer theorem, rollout theorem, loss,
-and the benchmark ladder that should guide the refactoring branch.
+unified-space abstraction, and the benchmark ladder that should guide the
+refactoring branch. The space adapter guide is `docs/unified_spaces.md`.
 
 ## Design Principles
 

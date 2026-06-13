@@ -2,13 +2,14 @@ module Architect
 
 # ─── Submodule includes ───────────────────────────────────────────────────────
 # Each include() defines the submodule before its `using .X` can resolve.
-# Dependency order: Core → Layers → Models/Data → Training → FAT
+# Dependency order: Core → Layers → Models/Data → Training → FAT → Spaces
 include("Core/Core.jl")
 include("Layers/Layers.jl")
 include("Models/Models.jl")
 include("Data/Data.jl")
 include("Training/Training.jl")
 include("FAT/FAT.jl")
+include("Spaces/Spaces.jl")
 
 # ─── Submodule usings ────────────────────────────────────────────────────────
 using .Core
@@ -17,6 +18,7 @@ using .Models
 using .Data
 using .Training
 using .FAT
+using .Spaces
 
 # ─── Global Exports ───────────────────────────────────────────────────────────
 
@@ -86,5 +88,13 @@ export FoldManager, should_fold, propose_and_apply_fold!
 
 # Phase 10 — Fractional Collocation Solver
 export chebyshev_nodes, fractional_diff_matrices, solve_fractional_msd
+
+# Re-exporting from Spaces
+export AbstractMathSpace, SpaceState
+export MetricSpace, MeasureSpace, TopologicalChartSpace, FractionalOperatorSpace
+export TropicalSpace, UltrametricSpace, SheafConsistencySpace, CategoricalBridgeSpace
+export to_space, from_space, space_distance, space_project, space_regularizer, space_metadata
+export apply_space_stack, space_stack_regularizer, space_stack_metrics
+export chart_residual, fractional_operator_weights, gluing_residual, commutator_residual
 
 end # module Architect

@@ -157,3 +157,21 @@ function trajectory
 
 If a feature does not make one of those links clearer, more measurable, or more
 stable, keep it outside the core API.
+
+## Unified Exotic Spaces
+
+The `Spaces` subsystem extends the theory surface without changing the default
+FAT path. It introduces a common adapter API:
+
+```julia
+to_space(space, coeffs)
+from_space(state)
+space_distance(space, a, b)
+space_project(space, x)
+space_regularizer(space, x)
+```
+
+The v1 goal is diagnostic and theoretical: metric, measure, topological,
+fractional, tropical, ultrametric, sheaf, and categorical views can all inspect
+the same coefficient trajectory. They are opt-in and experimental. The
+Chebyshev stabilizer remains the only proof-backed stabilizer.

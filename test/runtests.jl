@@ -10,7 +10,8 @@ const TEST_FILES = [
     "test_tokenizer.jl",
     "test_train.jl",
     "test_llama2.jl",
-    "test_fractional.jl"
+    "test_fractional.jl",
+    "test_spaces.jl"
 ]
 
 @testset "Architect.jl Test Suite" begin
