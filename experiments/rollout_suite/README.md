@@ -1,7 +1,8 @@
 # Rollout Suite
 
-This experiment validates the core FAT claim: long-horizon coefficient rollouts
-should be measured directly, not inferred from one-step loss.
+This experiment validates the core FAT evaluation rule: long-horizon
+coefficient rollouts must be measured directly, not inferred from one-step
+loss.
 
 Run:
 
@@ -9,22 +10,36 @@ Run:
 julia --project=. scripts/benchmark_function_rollouts.jl
 ```
 
-Outputs are written to `results/rollout_suite/` by default:
+Small smoke:
 
-- `config.json`: command arguments, benchmark config, git commit, dirty flag
-- `git_commit.txt`: commit metadata
-- `summary.csv`: one row per task/variant with aggregate metrics
-- `*_losses.csv`: training losses per iteration
-- `*_metrics.json`: full rollout metrics vectors
-- `*_rollout_sample.csv`: truth and generated coefficients
-- `*_rollout_errors.csv`: rollout error curves
-- `*_rollout_errors.svg`: dependency-free plots
+```bash
+julia --project=. scripts/benchmark_function_rollouts.jl \
+  iters=1 K=1 seq_len=2 seed_len=1 horizon=2 \
+  batch_size=1 n_embd=4 n_head=1 n_layer=0 outdir=/tmp/rollout_smoke
+```
+
+Default output directory:
+
+```text
+results/rollout_suite/
+```
+
+Outputs:
+
+- `config.json`: command arguments, benchmark config, git commit, dirty flag.
+- `git_commit.txt`: commit metadata.
+- `summary.csv`: one row per task and variant.
+- `*_losses.csv`: training losses.
+- `*_metrics.json`: rollout metrics vectors.
+- `*_rollout_sample.csv`: truth and generated coefficients.
+- `*_rollout_errors.csv`: rollout error curves.
+- `*_rollout_errors.svg`: dependency-free plots.
 
 Tasks:
 
-- `derivative`: Chebyshev derivative-like coefficient dynamics
-- `oscillator`: paired coefficient rotations
-- `heat`: diagonal heat-equation-like spectral decay
+- `derivative`: Chebyshev derivative-like coefficient dynamics.
+- `oscillator`: paired coefficient rotations.
+- `heat`: diagonal heat-equation-like spectral decay.
 
 Variants:
 
@@ -39,6 +54,11 @@ Interpretation:
 
 - `continuous_transformer` is the non-FAT coefficient transformer baseline.
 - `persistence` repeats the last seed coefficient vector.
-- `oracle_linear` uses the known synthetic transition matrix for the task. It is
-  not a learnable competitor; it is a sanity lower bound for these controlled
-  tasks.
+- `oracle_linear` uses the known synthetic transition matrix and is a sanity
+  lower bound, not a learned competitor.
+
+For the AetherSpaces physics benchmark, use:
+
+```bash
+julia --project=. scripts/benchmark_aether_physics.jl
+```

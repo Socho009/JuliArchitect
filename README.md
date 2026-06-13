@@ -27,6 +27,7 @@ exercise benchmarks, folding probes, and fractional collocation experiments.
 - [Theoretical Positioning](#theoretical-positioning)
 - [Implemented Architectures](#implemented-architectures)
 - [Repository Map](#repository-map)
+- [Documentation Map](#documentation-map)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [FAT API](#fat-api)
@@ -601,6 +602,21 @@ proofs/                      Lean 4 formal verification
 docs/                        short user-facing docs
 results/                     benchmark/probe outputs
 ```
+
+## Documentation Map
+
+- `docs/index.md`: current quick reference for AetherSpaces, FAT, APIs, and
+  benchmark commands.
+- `ARCHITECTURE.md`: module boundaries, dependency order, and extension rules.
+- `DESIGN.md`: implementation contracts, tensor layout, loss design, rollout
+  metrics, and proof boundary.
+- `docs/theory.md`: mathematical research contract for FAT and AetherSpaces.
+- `docs/unified_spaces.md`: AetherSpaces/Spaces subsystem guide.
+- `docs/guides.md`: runnable current commands and common workflows.
+- `docs/faq.md`: project identity, readiness, claims, and troubleshooting.
+- `experiments/rollout_suite/README.md`: canonical FAT rollout benchmark.
+- `experiments/unified_spaces/README.md`: deterministic space probe.
+- `proofs/README.md`: Lean proof scope and build command.
 
 ## Installation
 
