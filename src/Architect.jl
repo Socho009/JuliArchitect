@@ -2,14 +2,15 @@ module Architect
 
 # ─── Submodule includes ───────────────────────────────────────────────────────
 # Each include() defines the submodule before its `using .X` can resolve.
-# Dependency order: Core → Layers → Models/Data → Training → FAT → Spaces
+# Dependency order: Core → Layers → Models/Data → Training → Spaces → FAT
 include("Core/Core.jl")
 include("Layers/Layers.jl")
 include("Models/Models.jl")
 include("Data/Data.jl")
 include("Training/Training.jl")
-include("FAT/FAT.jl")
 include("Spaces/Spaces.jl")
+include("AetherSpaces/AetherSpaces.jl")
+include("FAT/FAT.jl")
 
 # ─── Submodule usings ────────────────────────────────────────────────────────
 using .Core
@@ -17,8 +18,10 @@ using .Layers
 using .Models
 using .Data
 using .Training
-using .FAT
 using .Spaces
+import .AetherSpaces
+using .AetherSpaces: stable_aether_spaces, diagnostic_aether_spaces, default_aether_spaces, aether_space_metrics
+using .FAT
 
 # ─── Global Exports ───────────────────────────────────────────────────────────
 
@@ -96,5 +99,7 @@ export TropicalSpace, UltrametricSpace, SheafConsistencySpace, CategoricalBridge
 export to_space, from_space, space_distance, space_project, space_regularizer, space_metadata
 export apply_space_stack, space_stack_regularizer, space_stack_metrics
 export chart_residual, fractional_operator_weights, gluing_residual, commutator_residual
+export AetherSpaces
+export stable_aether_spaces, diagnostic_aether_spaces, default_aether_spaces, aether_space_metrics
 
 end # module Architect

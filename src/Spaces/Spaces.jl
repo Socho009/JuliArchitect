@@ -2,8 +2,7 @@ module Spaces
 
 using LinearAlgebra
 using Statistics: mean
-
-import ..FAT: SpectralState
+using Zygote
 
 export AbstractMathSpace, SpaceState
 export MetricSpace, MeasureSpace, TopologicalChartSpace, FractionalOperatorSpace
@@ -20,8 +19,8 @@ struct SpaceState{T,S<:AbstractMathSpace}
 end
 
 _coords(x::AbstractArray) = x
-_coords(s::SpectralState) = s.coeffs
 _coords(s::SpaceState) = s.coords
+_coords(x) = hasproperty(x, :coeffs) ? getproperty(x, :coeffs) : x
 
 _same_array(x) = copy(_coords(x))
 
@@ -29,6 +28,8 @@ function _weights_array(weights::AbstractVector{T}, x::AbstractArray{T}) where {
     @assert length(weights) == size(x, 1) "weights length $(length(weights)) must match first dimension $(size(x, 1))"
     return reshape(weights, length(weights), ntuple(_ -> 1, ndims(x) - 1)...)
 end
+
+Zygote.@nograd _weights_array
 
 _finite_project(x::AbstractArray{T}) where {T<:AbstractFloat} =
     ifelse.(isfinite.(x), x, zero(T))
@@ -130,6 +131,8 @@ FractionalOperatorSpace(; alpha::Real=1.5, eps::Real=1e-6) =
 
 fractional_operator_weights(space::FractionalOperatorSpace{T}, n::Int) where {T} =
     T[(one(T) + T(k))^space.alpha for k in 0:n-1]
+
+Zygote.@nograd fractional_operator_weights
 
 function _to_space_coords(space::FractionalOperatorSpace{T}, x::AbstractArray{T}) where {T}
     w = _weights_array(fractional_operator_weights(space, size(x, 1)), x)

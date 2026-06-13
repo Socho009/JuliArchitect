@@ -11,7 +11,8 @@ const TEST_FILES = [
     "test_train.jl",
     "test_llama2.jl",
     "test_fractional.jl",
-    "test_spaces.jl"
+    "test_spaces.jl",
+    "test_aether_training.jl"
 ]
 
 @testset "Architect.jl Test Suite" begin

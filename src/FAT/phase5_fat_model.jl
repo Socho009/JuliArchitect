@@ -268,6 +268,8 @@ Hyperparameters for the FAT teacher-forced training loop.
 - `warmup_iters   :: Int` — α ramp length (approval warm-up)
 - `log_interval   :: Int`
 - `approval_weight :: T` — scales directional approval; `0` gives MSE-only training
+- `aether_lambda  :: T` — opt-in AetherSpaces regularization weight
+- `aether_spaces  :: Tuple` — spaces passed to `space_stack_regularizer`
 """
 struct FATTrainConfig{T<:AbstractFloat}
     learning_rate::T
@@ -282,6 +284,8 @@ struct FATTrainConfig{T<:AbstractFloat}
     mcp_lambda::T         # Phase 8: Hardin-Taylor MCP regularization weight
     mcp_alpha::T          # Phase 8: complexity exponent α
     approval_weight::T    # scales directional approval term; 0 gives MSE-only training
+    aether_lambda::T      # opt-in AetherSpaces regularization weight
+    aether_spaces::Tuple  # stable/diagnostic space adapters; empty keeps old behavior
 end
 
 function FATTrainConfig{T}(;
@@ -297,11 +301,13 @@ function FATTrainConfig{T}(;
         mcp_lambda::Real    = 0.0,
         mcp_alpha::Real     = 1.5,
         approval_weight::Real = 1.0,
+        aether_lambda::Real = 0.0,
+        aether_spaces = (),
 ) where {T<:AbstractFloat}
     FATTrainConfig{T}(T(learning_rate), T(weight_decay), max_iters, T(grad_clip),
                       (T(betas[1]), T(betas[2])), T(eps), T(loss_eps),
                       warmup_iters, log_interval, T(mcp_lambda), T(mcp_alpha),
-                      T(approval_weight))
+                      T(approval_weight), T(aether_lambda), Tuple(aether_spaces))
 end
 
 FATTrainConfig(; kwargs...) = FATTrainConfig{Float32}(; kwargs...)
@@ -491,6 +497,9 @@ function fat_train!(model::FunctionalAutoregressiveTransformer{T},
     println("FAT Training: $n_params parameters")
     println("  lr=$(config.learning_rate), wd=$(config.weight_decay), " *
             "iters=$(config.max_iters), warmup=$(config.warmup_iters)")
+    if config.aether_lambda > zero(T) && !isempty(config.aether_spaces)
+        println("  aether_lambda=$(config.aether_lambda), spaces=$(length(config.aether_spaces))")
+    end
 
     for iter in 1:config.max_iters
         input, target = data_fn()
@@ -510,7 +519,10 @@ function fat_train!(model::FunctionalAutoregressiveTransformer{T},
             # compatible function" principle
             if config.mcp_lambda > zero(T)
                 mcp = mcp_loss(Θ_pred, target; α=config.mcp_alpha)
-                base_loss + config.mcp_lambda * mcp
+                base_loss = base_loss + config.mcp_lambda * mcp
+            end
+            if config.aether_lambda > zero(T) && !isempty(config.aether_spaces)
+                base_loss + config.aether_lambda * space_stack_regularizer(Θ_pred, config.aether_spaces)
             else
                 base_loss
             end

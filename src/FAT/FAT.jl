@@ -49,6 +49,7 @@ import ..Models: ContinuousModel, generate
 import ..Models: coefficient_encoder, coefficient_head, coefficient_dimension, context_length
 import ..Data: FunctionSequenceLoader, make_functional_batch_fn
 import ..Training: train!
+import ..Spaces: space_stack_regularizer
 import ..Layers: AbstractLayer, AbstractAttention, Linear, Norm, Attention, Block, FeedForward
 import ..Layers: has_bias, _batched_attention_scores, _apply_causal_mask, _softmax, _dropout
 import ..Layers: _batched_attention_output, apply_position_encoding!

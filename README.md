@@ -764,10 +764,11 @@ fields for compatibility, but new shared code should prefer these accessors.
 ## Unified Spaces API
 
 The AetherSpaces implementation currently lives in `src/Spaces/Spaces.jl`.
-It adds an opt-in experimental interface for mathematical views over
-coefficient trajectories. It does not change the default FAT forward path, and
-normal FAT training, generation, and rollout evaluation work without passing any
-spaces.
+It is exposed through the public `Architect.AetherSpaces` facade and the
+top-level `Spaces` compatibility API. It adds an opt-in experimental interface
+for mathematical views over coefficient trajectories. It does not change the
+default FAT forward path, and normal FAT training, generation, and rollout
+evaluation work without passing any spaces.
 
 The subsystem is intentionally interface-first. Each space can define how
 spectral coefficients are represented, projected, measured, regularized, and
@@ -803,6 +804,10 @@ space_metadata
 apply_space_stack
 space_stack_regularizer
 space_stack_metrics
+stable_aether_spaces
+diagnostic_aether_spaces
+default_aether_spaces
+aether_space_metrics
 ```
 
 Implemented spaces:
@@ -820,8 +825,8 @@ Current limits:
 
 - The spaces are deterministic adapters and diagnostics, not trainable neural
   layers.
-- Space regularizers are available as scalar penalties, but they are not yet
-  wired into every training script.
+- Space regularizers are available as scalar penalties and can be enabled in
+  FAT training with `aether_lambda > 0` and `aether_spaces`.
 - Invariant preservation is a research target, not a global guarantee.
 - The classical Chebyshev stabilizer remains the only proof-backed stabilizer.
 
@@ -926,6 +931,13 @@ scripts/benchmark_function_rollouts.jl
   metrics and dependency-free SVG rollout-error plots.
   Each run writes config, git commit, losses, metrics JSON, rollout samples,
   CSV curves, and plots under results/rollout_suite/ by default.
+
+scripts/benchmark_aether_physics.jl
+  Paper-oriented Aether physics suite. Compares FAT, FAT with opt-in Aether
+  regularization, ContinuousModel, persistence, and oracle-linear baselines on
+  harmonic, damped, heat, wave, and fractional dynamics. Writes rollout metrics,
+  Aether per-space metrics, samples, CSV curves, and SVG plots under
+  results/aether_physics/ by default.
 
 scripts/ablation_stabilizer_approval.jl
   Convenience entry point for the rollout ablation suite.

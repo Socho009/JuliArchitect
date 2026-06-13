@@ -50,3 +50,22 @@ using LinearAlgebra
     path_b = x -> x .- 1f0
     @test isfinite(commutator_residual(f, g, path_a, path_b, coeffs))
 end
+
+@testset "AetherSpaces facade" begin
+    K = 4
+    coeffs = reshape(Float32[cos(i / 4) for i in 1:((K+1)*3)], K+1, 3)
+    target = coeffs .* 0.8f0
+
+    stable = stable_aether_spaces(Float32; K=K)
+    diagnostic = Architect.AetherSpaces.diagnostic_aether_spaces(Float32; K=K)
+
+    @test length(stable) == 3
+    @test length(diagnostic) == 8
+    @test all(space -> space isa AbstractMathSpace, stable)
+    @test all(space -> space isa AbstractMathSpace, diagnostic)
+    @test isfinite(space_stack_regularizer(coeffs, stable))
+
+    metrics = aether_space_metrics(coeffs, target, stable)
+    @test !isempty(metrics)
+    @test Architect.AetherSpaces.to_space(stable[1], coeffs).coords == to_space(stable[1], coeffs).coords
+end

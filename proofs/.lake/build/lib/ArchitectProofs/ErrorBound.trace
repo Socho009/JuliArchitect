@@ -1,0 +1,8 @@
+{"log":
+ [{"message":
+   ".> LEAN_PATH=././.lake/packages/Cli/.lake/build/lib:././.lake/packages/batteries/.lake/build/lib:././.lake/packages/Qq/.lake/build/lib:././.lake/packages/aesop/.lake/build/lib:././.lake/packages/proofwidgets/.lake/build/lib:././.lake/packages/importGraph/.lake/build/lib:././.lake/packages/LeanSearchClient/.lake/build/lib:././.lake/packages/plausible/.lake/build/lib:././.lake/packages/mathlib/.lake/build/lib:././.lake/build/lib LD_LIBRARY_PATH= /home/socho/.elan/toolchains/leanprover--lean4---v4.16.0/bin/lean ././././ArchitectProofs/ErrorBound.lean -R ./././. -o ././.lake/build/lib/ArchitectProofs/ErrorBound.olean -i ././.lake/build/lib/ArchitectProofs/ErrorBound.ilean -c ././.lake/build/ir/ArchitectProofs/ErrorBound.c --json",
+   "level": "trace"},
+  {"message":
+   "././././ArchitectProofs/ErrorBound.lean:17:23: The '∑ x in s, f x' notation is deprecated: please use '∑ x ∈ s, f x' instead:\n∑ i ∈ Finset.range n, epsilon (i + 1)",
+   "level": "info"}],
+ "depHash": "14912927520614882376"}

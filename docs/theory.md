@@ -160,8 +160,11 @@ stable, keep it outside the core API.
 
 ## Unified Exotic Spaces
 
-The `Spaces` subsystem extends the theory surface without changing the default
-FAT path. It introduces a common adapter API:
+AetherSpaces is the project direction for combining stable spectral
+autoregression with mathematical diagnostics over physical trajectories. The
+current implementation is the `Spaces` subsystem plus the public
+`Architect.AetherSpaces` facade. It extends the theory surface without changing
+the default FAT path and introduces a common adapter API:
 
 ```julia
 to_space(space, coeffs)
@@ -175,3 +178,76 @@ The v1 goal is diagnostic and theoretical: metric, measure, topological,
 fractional, tropical, ultrametric, sheaf, and categorical views can all inspect
 the same coefficient trajectory. They are opt-in and experimental. The
 Chebyshev stabilizer remains the only proof-backed stabilizer.
+
+## Aether Objective
+
+The research claim for the next milestone is:
+
+> AetherSpaces learns and evaluates continuous physical trajectories by
+> combining stable spectral autoregression with multi-space mathematical
+> diagnostics and regularization.
+
+This has three aligned surfaces:
+
+- AI: FAT is an autoregressive neural operator over spectral coefficients.
+- Physics: benchmarks measure rollout stability, energy drift, damping,
+  propagation, and fractional decay.
+- Mathematics: Aether spaces expose Hilbert, weighted-measure, fractional,
+  tropical, ultrametric, sheaf-style, and categorical residuals.
+
+## Aether-Regularized Training
+
+The default FAT loss remains unchanged. Opt-in Aether regularization adds a
+space penalty:
+
+```math
+L =
+L_{one-step/approval}
++ \lambda_{MCP} L_{MCP}
++ \lambda_{Aether} \sum_i R_i(\hat{\Theta}),
+```
+
+where each `R_i` is computed by `space_regularizer` through the selected
+Aether spaces. In code this is controlled by `FATTrainConfig`:
+
+```julia
+FATTrainConfig(;
+    aether_lambda = 1f-3,
+    aether_spaces = stable_aether_spaces(Float32; K=K),
+)
+```
+
+The default is `aether_lambda = 0` and `aether_spaces = ()`, which preserves
+the existing FAT training path.
+
+## Aether Physics Ladder
+
+The canonical physics-first benchmark is:
+
+```bash
+julia --project=. scripts/benchmark_aether_physics.jl
+```
+
+It evaluates harmonic oscillator, damped oscillator, heat equation spectral
+decay, wave-like propagation, and fractional diffusion dynamics. For each task
+it compares:
+
+- FAT with stabilizer.
+- FAT without stabilizer.
+- FAT with Aether regularization and stabilizer.
+- FAT with Aether regularization without stabilizer.
+- ContinuousModel baseline.
+- persistence baseline.
+- linear oracle baseline.
+
+The benchmark writes config, git metadata, losses, rollout metrics, Aether
+per-space metrics, generated samples, CSV curves, and SVG plots under
+`results/aether_physics/`.
+
+## Proof Boundary
+
+Aether regularizers are experimental. They can shape training and expose
+failure modes, but they do not yet prove invariant preservation or gauge
+covariance. The only formal non-expansive guarantee remains the corrected
+Chebyshev stabilizer. Future proof work should start with metric, measure, and
+fractional spaces before attempting tropical, sheaf, or categorical statements.
