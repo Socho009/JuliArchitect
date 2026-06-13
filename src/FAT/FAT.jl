@@ -84,6 +84,9 @@ export compute_similarity, propose_clusters, save_similarity_csv
 export FoldedHead, apply_soft_merge
 export FoldManager, should_fold, propose_and_apply_fold!
 
+# Phase 10 — Fractional Collocation Solver
+export chebyshev_nodes, fractional_diff_matrices, solve_fractional_msd
+
 # ─── Includes (in dependency order) ─────────────────────────────────────────
 include("phase1_hilbert.jl")
 include("phase2_spectral_head.jl")
@@ -94,5 +97,6 @@ include("phase6_data.jl")
 include("phase7_mla.jl")
 include("phase8_hardin_taylor.jl")
 include("folding.jl")
+include("fractional.jl")
 
 end # module FAT

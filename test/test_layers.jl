@@ -3,10 +3,7 @@ using Statistics
 using LinearAlgebra
 using Random
 
-# Include source files directly for testing
-include(joinpath(@__DIR__, "..", "src", "types.jl"))
-include(joinpath(@__DIR__, "..", "src", "config.jl"))
-include(joinpath(@__DIR__, "..", "src", "layers.jl"))
+using Architect
 
 @testset "LayerNorm" begin
 

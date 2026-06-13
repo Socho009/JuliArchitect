@@ -82,4 +82,7 @@ export compute_similarity, propose_clusters, save_similarity_csv
 export FoldedHead, apply_soft_merge
 export FoldManager, should_fold, propose_and_apply_fold!
 
+# Phase 10 — Fractional Collocation Solver
+export chebyshev_nodes, fractional_diff_matrices, solve_fractional_msd
+
 end # module Architect

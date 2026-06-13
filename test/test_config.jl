@@ -1,8 +1,6 @@
 using Test
 
-# Include source files directly for testing
-include(joinpath(@__DIR__, "..", "src", "types.jl"))
-include(joinpath(@__DIR__, "..", "src", "config.jl"))
+using Architect
 
 @testset "GPTConfig" begin
 

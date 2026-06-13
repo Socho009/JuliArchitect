@@ -6,13 +6,19 @@
 Dictionary mapping preset symbols to their (n_layer, n_head, n_embd) configurations.
 """
 const MODEL_PRESETS = Dict{Symbol, NamedTuple{(:n_layer, :n_head, :n_embd), Tuple{Int, Int, Int}}}(
-    :nano   => (n_layer=3,  n_head=3,  n_embd=48),
-    :micro  => (n_layer=4,  n_head=4,  n_embd=128),
-    :mini   => (n_layer=6,  n_head=6,  n_embd=192),
-    :base   => (n_layer=12, n_head=12, n_embd=768),
-    :medium => (n_layer=24, n_head=16, n_embd=1024),
-    :large  => (n_layer=36, n_head=20, n_embd=1280),
-    :xl     => (n_layer=48, n_head=25, n_embd=1600),
+    :nano        => (n_layer=3,  n_head=3,  n_embd=48),
+    :micro       => (n_layer=4,  n_head=4,  n_embd=128),
+    :mini        => (n_layer=6,  n_head=6,  n_embd=192),
+    :base        => (n_layer=12, n_head=12, n_embd=768),
+    :medium      => (n_layer=24, n_head=16, n_embd=1024),
+    :large       => (n_layer=36, n_head=20, n_embd=1280),
+    :xl          => (n_layer=48, n_head=25, n_embd=1600),
+    # Legacy aliases for test compatibility
+    :gpt_nano    => (n_layer=3,  n_head=3,  n_embd=48),
+    :gpt2        => (n_layer=12, n_head=12, n_embd=768),
+    :gpt2_medium => (n_layer=24, n_head=16, n_embd=1024),
+    :gpt2_large  => (n_layer=36, n_head=20, n_embd=1280),
+    :gpt2_xl     => (n_layer=48, n_head=25, n_embd=1600),
 )
 
 """

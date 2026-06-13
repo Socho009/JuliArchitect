@@ -2,7 +2,7 @@
 
 julia_version = "1.12.5"
 manifest_format = "2.0"
-project_hash = "7cd89c9103db4e4cd927d79a5db635bcc2c2b9bd"
+project_hash = "b8dc0db8fb6bb55aca9bfeeb35292221e9d766d8"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -482,7 +482,7 @@ uuid = "9c1d0b0a-7046-5b2e-a33f-ea22f176ac7e"
 version = "0.2.1+0"
 
 [[deps.JuliaNativeGPT]]
-deps = ["CUDA", "Flux", "JSON", "LinearAlgebra", "Random", "Statistics", "Zygote"]
+deps = ["CUDA", "Flux", "JSON", "LinearAlgebra", "Printf", "Random", "Statistics", "Zygote"]
 path = "."
 uuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 version = "0.1.0"
@@ -909,9 +909,9 @@ version = "0.1.2"
 
 [[deps.SpecialFunctions]]
 deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
-git-tree-sha1 = "2700b235561b0335d5bef7097a111dc513b8655e"
+git-tree-sha1 = "6547cbdd8ce32efba0d21c5a40fa96d1a3548f9f"
 uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
-version = "2.7.2"
+version = "2.8.0"
 weakdeps = ["ChainRulesCore"]
 
     [deps.SpecialFunctions.extensions]

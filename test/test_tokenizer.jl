@@ -1,9 +1,7 @@
 using Test
 using JSON
 
-# Include source files directly for testing
-include(joinpath(@__DIR__, "..", "src", "types.jl"))
-include(joinpath(@__DIR__, "..", "src", "tokenizer.jl"))
+using Architect
 
 @testset "CharTokenizer" begin
 

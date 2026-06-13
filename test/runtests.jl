@@ -9,7 +9,8 @@ const TEST_FILES = [
     "test_recurrent.jl",
     "test_tokenizer.jl",
     "test_train.jl",
-    "test_llama2.jl"
+    "test_llama2.jl",
+    "test_fractional.jl"
 ]
 
 @testset "Architect.jl Test Suite" begin

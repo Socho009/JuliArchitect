@@ -25,7 +25,7 @@ function ContinuousTimeDataLoader{P}(;
     seq_length::Int = 16,
     batch_size::Int = 32
 ) where P
-    @assert task in (:sine_waves, :step_functions, :lorentz)
+    @assert task in (:sine_waves, :step_functions, :lorentz, :fractional_oscillator)
     basis = ChebyshevBasis{K}()
     ContinuousTimeDataLoader{P, K}(task, seq_length, batch_size, basis)
 end
@@ -111,6 +111,50 @@ function _generate_continuous_sequence!(out::AbstractMatrix{P}, loader::Continuo
             f_x = x -> P(0.1) * (x_c * x + y_c * x^2 + z_c * x^3)
             
             state = project(loader.basis, f_x, P; N=N_nodes)
+            out[:, t] .= state.coeffs
+        end
+
+    elseif loader.task == :fractional_oscillator
+        # Solve fractional mass-spring-damper for a sequence of alphas between 1.1 and 2.0
+        m = P(0.8) + rand(P) * P(0.7)
+        c = P(0.5) + rand(P) * P(1.0)
+        k = P(2.0) + rand(P) * P(3.0)
+        u0 = randn(P) * P(0.5)
+        v0 = randn(P) * P(0.2)
+        Tf = P(5.0)
+        
+        # Random forcing function
+        F_amp = randn(P) * P(0.5)
+        F_freq = P(1.0) + rand(P) * P(2.0)
+        F_func(t_val) = F_amp * sin(F_freq * t_val)
+        
+        # Range of alphas for sequence length T_total
+        alphas = range(P(1.1), P(2.0), length=T_total)
+        
+        # Pre-build shifted monomial Vandermonde inverse for interpolation
+        x_cgl = [cos(i * π / K) for i in 0:K]
+        V_shifted = zeros(P, K+1, K+1)
+        for i in 1:(K+1)
+            for j in 1:(K+1)
+                V_shifted[i, j] = (x_cgl[i] + 1.0)^(j - 1)
+            end
+        end
+        V_inv = inv(V_shifted)
+        
+        for t in 1:T_total
+            alpha = alphas[t]
+            
+            # Solve using the fractional solver
+            _, U_values = solve_fractional_msd(K, alpha, m, c, k, u0, v0, Tf, F_func)
+            
+            # Compute shifted monomial coefficients
+            a = V_inv * U_values
+            
+            # Continuous interpolating function on x ∈ [-1, 1]
+            f_x = x_val -> sum(a[p+1] * (x_val + 1.0)^p for p in 0:K)
+            
+            # Project onto Chebyshev basis using exact DCT-I (N = K)
+            state = project(loader.basis, f_x, P; N=K+4)
             out[:, t] .= state.coeffs
         end
     end
