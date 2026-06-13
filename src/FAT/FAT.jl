@@ -45,6 +45,9 @@ using Zygote
 # ambiguity between our Architect.Core and Julia's built-in Core module.
 import ..Core
 import ..Core: AbstractModelConfig
+import ..Models: ContinuousModel, generate
+import ..Models: coefficient_encoder, coefficient_head, coefficient_dimension, context_length
+import ..Training: train!
 import ..Layers: AbstractLayer, AbstractAttention, Linear, Norm, Attention, Block, FeedForward
 import ..Layers: has_bias, _batched_attention_scores, _apply_causal_mask, _softmax, _dropout
 import ..Layers: _batched_attention_output, apply_position_encoding!
@@ -71,6 +74,7 @@ export approval_alpha_schedule, check_loss_gradient
 # Phase 5 — Full FAT model
 export FATConfig, FunctionalAutoregressiveTransformer
 export fat_forward, fat_train!, fat_generate, adaptive_fat_generate, FATTrainConfig, FATTrainState
+export rollout, evaluate_rollout, rollout_metrics, RolloutMetrics
 # Phase 6 — Continuous Data Streams
 export ContinuousTimeDataLoader, next_batch, make_continuous_batch_fn
 # Phase 7 — Multi-Head Latent Attention
@@ -96,6 +100,7 @@ include("phase5_fat_model.jl")
 include("phase6_data.jl")
 include("phase7_mla.jl")
 include("phase8_hardin_taylor.jl")
+include("rollout.jl")
 include("folding.jl")
 include("fractional.jl")
 

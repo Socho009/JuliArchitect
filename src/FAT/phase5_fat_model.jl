@@ -267,6 +267,7 @@ Hyperparameters for the FAT teacher-forced training loop.
 - `loss_eps       :: T`  — ε for directional loss numerics
 - `warmup_iters   :: Int` — α ramp length (approval warm-up)
 - `log_interval   :: Int`
+- `approval_weight :: T` — scales directional approval; `0` gives MSE-only training
 """
 struct FATTrainConfig{T<:AbstractFloat}
     learning_rate::T
@@ -280,6 +281,7 @@ struct FATTrainConfig{T<:AbstractFloat}
     log_interval::Int
     mcp_lambda::T         # Phase 8: Hardin-Taylor MCP regularization weight
     mcp_alpha::T          # Phase 8: complexity exponent α
+    approval_weight::T    # scales directional approval term; 0 gives MSE-only training
 end
 
 function FATTrainConfig{T}(;
@@ -294,10 +296,12 @@ function FATTrainConfig{T}(;
         log_interval::Int   = 100,
         mcp_lambda::Real    = 0.0,
         mcp_alpha::Real     = 1.5,
+        approval_weight::Real = 1.0,
 ) where {T<:AbstractFloat}
     FATTrainConfig{T}(T(learning_rate), T(weight_decay), max_iters, T(grad_clip),
                       (T(betas[1]), T(betas[2])), T(eps), T(loss_eps),
-                      warmup_iters, log_interval, T(mcp_lambda), T(mcp_alpha))
+                      warmup_iters, log_interval, T(mcp_lambda), T(mcp_alpha),
+                      T(approval_weight))
 end
 
 FATTrainConfig(; kwargs...) = FATTrainConfig{Float32}(; kwargs...)
@@ -492,7 +496,7 @@ function fat_train!(model::FunctionalAutoregressiveTransformer{T},
         input, target = data_fn()
 
         # α schedule: ramp from 0 (MSE) to 1 (approval) over warmup_iters
-        α = T(approval_alpha_schedule(iter; warmup_iters=config.warmup_iters))
+        α = config.approval_weight * T(approval_alpha_schedule(iter; warmup_iters=config.warmup_iters))
 
         # ── Zygote AD: single backward pass ───────────────────────────────────
         loss_val, model_grad = Zygote.withgradient(model) do m
@@ -744,3 +748,28 @@ function Core.to_device(model::FunctionalAutoregressiveTransformer{T,K,Ka,Pe},
         model.config, embed_new, blocks_new, lnf_new, head_new, model.stabilizer
     )
 end
+
+# ─── Canonical API compatibility ──────────────────────────────────────────────
+
+coefficient_encoder(model::FunctionalAutoregressiveTransformer) = model.coeff_embed
+coefficient_head(model::FunctionalAutoregressiveTransformer) = model.spectral_head
+coefficient_dimension(model::FunctionalAutoregressiveTransformer) = model.config.K + 1
+context_length(model::FunctionalAutoregressiveTransformer) = model.config.block_size
+
+function Base.getproperty(model::FunctionalAutoregressiveTransformer, name::Symbol)
+    if name === :coeff_encoder
+        return getfield(model, :coeff_embed)
+    elseif name === :coeff_head
+        return getfield(model, :spectral_head)
+    else
+        return getfield(model, name)
+    end
+end
+
+"""
+    train!(model::FunctionalAutoregressiveTransformer, data_fn, config::FATTrainConfig)
+
+Canonical training entry point for FAT models. Dispatches to `fat_train!`.
+"""
+train!(model::FunctionalAutoregressiveTransformer{T}, data_fn, config::FATTrainConfig{T}) where {T<:AbstractFloat} =
+    fat_train!(model, data_fn, config)

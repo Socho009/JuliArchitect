@@ -34,6 +34,7 @@ export RNNCell, LSTMCell, GRUCell
 
 # Re-exporting from Models
 export ContinuousConfig, ContinuousModel, evaluate_function
+export coefficient_encoder, coefficient_head, coefficient_dimension, context_length
 export SequenceConfig, SequenceModel
 export Llama2Config, Llama2Weights, Llama2State, Llama2Transformer, load_llama2_checkpoint
 
@@ -69,6 +70,7 @@ export approval_alpha_schedule, check_loss_gradient
 # Phase 5 — Full FAT model
 export FATConfig, FunctionalAutoregressiveTransformer
 export fat_forward, fat_train!, fat_generate, adaptive_fat_generate, FATTrainConfig, FATTrainState
+export rollout, evaluate_rollout, rollout_metrics, RolloutMetrics
 # Phase 6 — Continuous Data Streams
 export ContinuousTimeDataLoader, make_continuous_batch_fn
 # Phase 7 — Multi-Head Latent Attention
