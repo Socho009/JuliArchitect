@@ -610,6 +610,8 @@ results/                     benchmark/probe outputs
 - `ARCHITECTURE.md`: module boundaries, dependency order, and extension rules.
 - `DESIGN.md`: implementation contracts, tensor layout, loss design, rollout
   metrics, and proof boundary.
+- `docs/aether_math.md`: elegant mathematical frame connecting FAT,
+  AetherSpaces, observers, residuals, rollout, and proof boundaries.
 - `docs/theory.md`: mathematical research contract for FAT and AetherSpaces.
 - `docs/unified_spaces.md`: AetherSpaces/Spaces subsystem guide.
 - `docs/guides.md`: runnable current commands and common workflows.

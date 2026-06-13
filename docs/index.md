@@ -217,6 +217,7 @@ covariance.
 - [README](../README.md)
 - [Architecture](../ARCHITECTURE.md)
 - [Design Notes](../DESIGN.md)
+- [Aether mathematical frame](aether_math.md)
 - [Theory](theory.md)
 - [AetherSpaces subsystem](unified_spaces.md)
 - [Guides](guides.md)
